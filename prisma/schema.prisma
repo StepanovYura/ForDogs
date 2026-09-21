@@ -1,0 +1,191 @@
+// Схема базы данных интернет-магазина одежды для собак NIXDOG STUDIO.
+// ORM — Prisma, база — PostgreSQL (ONREZA Managed PostgreSQL).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Рабочие запросы идут через пул PgBouncer.
+  url       = env("DATABASE_URL")
+  // Миграции, db push и seed требуют прямого подключения:
+  // через PgBouncer в transaction-режиме они не работают.
+  directUrl = env("DIRECT_URL")
+}
+
+// ─────────────────────────── Пользователи ───────────────────────────
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  phone        String?
+  role         Role     @default(USER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  orders Order[]
+
+  @@map("users")
+}
+
+// ──────────────────────────── Каталог ───────────────────────────────
+
+model Category {
+  id       String    @id @default(cuid())
+  slug     String    @unique
+  title    String
+  position Int       @default(0)
+  products Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  title       String
+  // Цена в копейках, чтобы не было ошибок округления.
+  priceKopeks Int
+  description String  @default("")
+  // Раскрываемые блоки на карточке товара.
+  composition String @default("") // «Состав и уход»
+  delivery    String @default("") // «Доставка и возврат»
+  isActive    Boolean @default(true)
+  position    Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  images   ProductImage[]
+  variants ProductVariant[]
+
+  @@index([categoryId])
+  @@map("products")
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  // Публичный URL объекта в Yandex Object Storage.
+  url       String
+  // Ключ объекта в бакете — нужен, чтобы удалить файл вместе с товаром.
+  key       String?
+  alt       String  @default("")
+  // К какому цвету относится фото (null — общее фото товара).
+  colorSlug String?
+  position  Int     @default(0)
+
+  @@index([productId])
+  @@map("product_images")
+}
+
+// Вариант = конкретное сочетание цвета и размера со своим остатком.
+model ProductVariant {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  colorSlug String // burgundy, beige, grey, black
+  colorName String // Бордовый, Бежевый, ...
+  colorHex  String // #7B1E2B — кружок выбора цвета на карточке
+  size      String // XS, S, M, L, XL
+
+  sku   String? @unique
+  stock Int     @default(0)
+
+  orderItems OrderItem[]
+
+  @@unique([productId, colorSlug, size])
+  @@index([productId])
+  @@map("product_variants")
+}
+
+// Таблица подбора размера («Как выбрать размер?»).
+model SizeGuideRow {
+  id          String @id @default(cuid())
+  size        String @unique
+  backLength  String // длина спины, см
+  chest       String // обхват груди, см
+  neck        String // обхват шеи, см
+  breedsHint  String @default("") // примеры пород
+  position    Int    @default(0)
+
+  @@map("size_guide_rows")
+}
+
+// ───────────────────────────── Заказы ───────────────────────────────
+
+enum OrderStatus {
+  PENDING   // создан, ждём оплату
+  PAID      // ЮKassa подтвердила оплату
+  SHIPPED   // передан в доставку
+  DONE      // вручён
+  CANCELED  // отменён / оплата не прошла
+}
+
+model Order {
+  id     String @id @default(cuid())
+  // Человекочитаемый номер заказа, который видит покупатель.
+  number Int    @unique @default(autoincrement())
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  status      OrderStatus @default(PENDING)
+  totalKopeks Int
+
+  // Контакты и доставка — копируются в заказ, чтобы история не «поехала»,
+  // если пользователь потом поменяет профиль.
+  customerName  String
+  customerEmail String
+  customerPhone String
+  city          String
+  address       String
+  postalCode    String @default("")
+  comment       String @default("")
+
+  // Платёж в ЮKassa
+  paymentId     String? @unique
+  paymentStatus String?
+  paidAt        DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items OrderItem[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("orders")
+}
+
+model OrderItem {
+  id      String @id @default(cuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  variantId String?
+  variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  // Снимок товара на момент покупки.
+  titleSnapshot String
+  colorSnapshot String
+  sizeSnapshot  String
+  imageSnapshot String  @default("")
+  priceKopeks   Int
+  quantity      Int
+
+  @@index([orderId])
+  @@map("order_items")
+}
