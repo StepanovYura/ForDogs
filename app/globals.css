@@ -395,6 +395,8 @@ textarea {
 .card__placeholder {
   position: absolute;
   inset: 0;
+  /* Декоративная заглушка: кликам она мешать не должна. */
+  pointer-events: none;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -459,6 +461,7 @@ textarea {
 }
 
 .thumb {
+  position: relative;
   aspect-ratio: 3 / 4;
   background: var(--bg-tile);
   border: 1px solid transparent;
@@ -634,6 +637,7 @@ textarea {
 }
 
 .lookbook__tile {
+  position: relative;
   aspect-ratio: 4 / 5;
   background: var(--bg-tile);
   overflow: hidden;
@@ -673,6 +677,7 @@ textarea {
 }
 
 .hero__media {
+  position: relative;
   aspect-ratio: 4 / 3;
   background: var(--bg-tile);
   overflow: hidden;
@@ -732,6 +737,7 @@ textarea {
 }
 
 .cart-row__media {
+  position: relative;
   aspect-ratio: 3 / 4;
   background: var(--bg-tile);
   overflow: hidden;
