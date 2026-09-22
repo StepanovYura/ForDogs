@@ -3,7 +3,7 @@ import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import { CartProvider } from '@/context/CartContext'
 import { getCurrentUser } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { getCategories } from '@/lib/categories'
 
 export const metadata = {
   title: 'NIXDOG STUDIO — одежда для собак',
@@ -15,10 +15,7 @@ export const metadata = {
 export const dynamic = 'force-dynamic'
 
 export default async function RootLayout({ children }) {
-  const [user, categories] = await Promise.all([
-    getCurrentUser(),
-    prisma.category.findMany({ orderBy: { position: 'asc' } }).catch(() => []),
-  ])
+  const [user, categories] = await Promise.all([getCurrentUser(), getCategories()])
 
   return (
     <html lang="ru">

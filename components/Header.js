@@ -23,20 +23,20 @@ export default function Header({ user, categories = [] }) {
               {c.title}
             </Link>
           ))}
-          <Link href="/about">О бренде</Link>
-          <Link href="/delivery">Доставка</Link>
-          <Link href="/contacts">Контакты</Link>
+          <Link prefetch={false} href="/about">О бренде</Link>
+          <Link prefetch={false} href="/delivery">Доставка</Link>
+          <Link prefetch={false} href="/contacts">Контакты</Link>
         </nav>
 
         <div className="header__actions">
           {user ? (
-            <Link href={user.role === 'ADMIN' ? '/admin' : '/account'}>
+            <Link prefetch={false} href={user.role === 'ADMIN' ? '/admin' : '/account'}>
               {user.role === 'ADMIN' ? 'Админка' : 'Кабинет'}
             </Link>
           ) : (
-            <Link href="/login">Вход</Link>
+            <Link prefetch={false} href="/login">Вход</Link>
           )}
-          <Link href="/cart" className="cart-link">
+          <Link prefetch={false} href="/cart" className="cart-link">
             Корзина
             {count > 0 && <span className="cart-count">{count}</span>}
           </Link>

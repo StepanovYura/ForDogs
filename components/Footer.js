@@ -22,11 +22,11 @@ export default function Footer({ categories = [] }) {
             </div>
             <ul className="footer__list">
               <li>
-                <Link href="/catalog">Все товары</Link>
+                <Link prefetch={false} href="/catalog">Все товары</Link>
               </li>
               {categories.map((c) => (
                 <li key={c.id}>
-                  <Link href={`/catalog?category=${c.slug}`}>{c.title}</Link>
+                  <Link prefetch={false} href={`/catalog?category=${c.slug}`}>{c.title}</Link>
                 </li>
               ))}
             </ul>
@@ -38,13 +38,13 @@ export default function Footer({ categories = [] }) {
             </div>
             <ul className="footer__list">
               <li>
-                <Link href="/size-guide">Как выбрать размер</Link>
+                <Link prefetch={false} href="/size-guide">Как выбрать размер</Link>
               </li>
               <li>
-                <Link href="/delivery">Доставка и оплата</Link>
+                <Link prefetch={false} href="/delivery">Доставка и оплата</Link>
               </li>
               <li>
-                <Link href="/account/orders">Мои заказы</Link>
+                <Link prefetch={false} href="/account/orders">Мои заказы</Link>
               </li>
             </ul>
           </div>
@@ -55,10 +55,10 @@ export default function Footer({ categories = [] }) {
             </div>
             <ul className="footer__list">
               <li>
-                <Link href="/about">О бренде</Link>
+                <Link prefetch={false} href="/about">О бренде</Link>
               </li>
               <li>
-                <Link href="/contacts">Контакты</Link>
+                <Link prefetch={false} href="/contacts">Контакты</Link>
               </li>
             </ul>
           </div>
