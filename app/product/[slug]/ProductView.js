@@ -9,6 +9,10 @@ import Accordion from '@/components/Accordion'
 import SizeGuideModal from '@/components/SizeGuideModal'
 
 const SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL']
+// Порядок цветов на карточке. Из базы варианты приходят отсортированными
+// по алфавиту, и первым оказывался бежевый — поэтому задаём порядок явно,
+// чтобы по умолчанию выбирался основной цвет модели.
+const COLOR_ORDER = ['burgundy', 'beige', 'grey', 'black']
 
 export default function ProductView({ product, sizeGuide }) {
   const router = useRouter()
@@ -22,7 +26,11 @@ export default function ProductView({ product, sizeGuide }) {
         list.push({ slug: v.colorSlug, name: v.colorName, hex: v.colorHex })
       }
     }
-    return list
+    return list.sort((a, b) => {
+      const ia = COLOR_ORDER.indexOf(a.slug)
+      const ib = COLOR_ORDER.indexOf(b.slug)
+      return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib)
+    })
   }, [product.variants])
 
   const [color, setColor] = useState(colors[0]?.slug ?? null)
