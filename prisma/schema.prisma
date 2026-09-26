@@ -81,6 +81,10 @@ model ProductImage {
   url       String
   // Ключ объекта в бакете — нужен, чтобы удалить файл вместе с товаром.
   key       String?
+  // Уменьшенная копия для сеток каталога: полноразмерное фото там
+  // избыточно и тормозит загрузку.
+  thumbUrl  String?
+  thumbKey  String?
   alt       String  @default("")
   // К какому цвету относится фото (null — общее фото товара).
   colorSlug String?
