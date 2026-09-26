@@ -95,8 +95,8 @@ export default async function CatalogPage({ searchParams }) {
       ) : (
         <>
           <div className="grid-products">
-            {products.map((p) => (
-              <ProductCard key={p.id} product={p} />
+            {products.map((p, index) => (
+              <ProductCard key={p.id} product={p} priority={index < 4} />
             ))}
           </div>
 

@@ -113,7 +113,12 @@ export default function ProductView({ product, sizeGuide }) {
         <div className="product__main">
           {main ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={main.url} alt={main.alt || product.title} />
+            <img
+              src={main.url}
+              alt={main.alt || product.title}
+              fetchPriority="high"
+              decoding="async"
+            />
           ) : (
             <div className="card__placeholder">Фото скоро появится</div>
           )}

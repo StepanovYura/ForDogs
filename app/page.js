@@ -49,7 +49,12 @@ export default async function HomePage() {
         <div className="hero__media">
           {hero ? (
             /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={hero.images[0].url} alt={hero.title} />
+            <img
+              src={hero.images[0].url}
+              alt={hero.title}
+              fetchPriority="high"
+              decoding="async"
+            />
           ) : (
             <div className="card__placeholder">Фотография обложки</div>
           )}
@@ -83,8 +88,8 @@ export default async function HomePage() {
           </div>
         ) : (
           <div className="grid-products">
-            {products.map((p) => (
-              <ProductCard key={p.id} product={p} />
+            {products.map((p, index) => (
+              <ProductCard key={p.id} product={p} priority={index < 4} />
             ))}
           </div>
         )}
