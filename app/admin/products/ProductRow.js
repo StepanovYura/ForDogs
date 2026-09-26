@@ -4,6 +4,7 @@ import { useState } from 'react'
 import ImageUploader from './ImageUploader'
 import {
   deleteImageAction,
+  moveImageAction,
   deleteProductAction,
   deleteVariantAction,
   setVariantStockAction,
@@ -207,6 +208,10 @@ export default function ProductRow({ product, categories }) {
           <h3 className="h3" style={{ marginTop: 32 }}>
             Фотографии
           </h3>
+          <p className="small muted" style={{ marginTop: -6 }}>
+            Первая фотография — обложка товара в каталоге. Порядок меняется
+            стрелками.
+          </p>
 
           {product.images.length > 0 && (
             <div
@@ -217,19 +222,47 @@ export default function ProductRow({ product, categories }) {
                 marginBottom: 16,
               }}
             >
-              {product.images.map((image) => (
+              {product.images.map((image, index) => (
                 <div key={image.id}>
                   <div className="card__media" style={{ marginBottom: 6 }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={image.url} alt={image.alt} />
+                    <img src={image.thumbUrl || image.url} alt={image.alt} loading="lazy" />
+                    {index === 0 && <span className="card__sold-out">обложка</span>}
                   </div>
                   <div className="small muted">{image.colorSlug || 'общее'}</div>
-                  <form action={deleteImageAction}>
-                    <input type="hidden" name="imageId" value={image.id} />
-                    <button type="submit" className="link-underline">
-                      Удалить
-                    </button>
-                  </form>
+
+                  <div className="inline-form" style={{ gap: 6, marginTop: 4 }}>
+                    <form action={moveImageAction}>
+                      <input type="hidden" name="imageId" value={image.id} />
+                      <input type="hidden" name="direction" value="up" />
+                      <button
+                        type="submit"
+                        className="btn btn--ghost btn--sm"
+                        disabled={index === 0}
+                        title="Переместить выше"
+                      >
+                        ↑
+                      </button>
+                    </form>
+                    <form action={moveImageAction}>
+                      <input type="hidden" name="imageId" value={image.id} />
+                      <input type="hidden" name="direction" value="down" />
+                      <button
+                        type="submit"
+                        className="btn btn--ghost btn--sm"
+                        disabled={index === product.images.length - 1}
+                        title="Переместить ниже"
+                      >
+                        ↓
+                      </button>
+                    </form>
+                    <form action={deleteImageAction}>
+                      <input type="hidden" name="imageId" value={image.id} />
+                      <button type="submit" className="link-underline">
+                        Удалить
+                      </button>
+                    </form>
+                  </div>
                 </div>
               ))}
             </div>

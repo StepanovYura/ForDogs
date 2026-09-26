@@ -992,6 +992,48 @@ textarea {
   color: #fff;
 }
 
+/* ────────────────────── Постраничная навигация ─────────────────── */
+
+.pager {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  align-items: center;
+  padding: 48px 0 16px;
+}
+
+.pager__page,
+.pager__step {
+  min-width: 38px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+.pager__step {
+  text-transform: uppercase;
+}
+
+.pager__page:hover,
+.pager__step:hover {
+  border-color: var(--ink);
+}
+
+.pager__page[aria-current='true'] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+}
+
+.pager__gap {
+  padding: 0 4px;
+  color: var(--ink-mute);
+}
+
 /* ─────────────────────────── Адаптив ───────────────────────────── */
 
 @media (max-width: 1024px) {

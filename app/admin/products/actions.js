@@ -164,3 +164,39 @@ export async function deleteImageAction(formData) {
   revalidatePath('/admin/products')
   revalidatePath('/catalog')
 }
+
+// Порядок фотографий = порядок показа в галерее, а первая становится
+// обложкой в каталоге. Меняем местами позиции с соседом.
+export async function moveImageAction(formData) {
+  await requireAdmin()
+
+  const id = String(formData.get('imageId'))
+  const direction = String(formData.get('direction')) === 'up' ? -1 : 1
+
+  const image = await prisma.productImage.findUnique({ where: { id } })
+  if (!image) return
+
+  const siblings = await prisma.productImage.findMany({
+    where: { productId: image.productId },
+    orderBy: { position: 'asc' },
+  })
+
+  const index = siblings.findIndex((i) => i.id === id)
+  const target = siblings[index + direction]
+  if (!target) return
+
+  // Позиции могли разъехаться (дубли, пропуски), поэтому не меняем два
+  // значения местами, а перенумеровываем весь список после перестановки.
+  const reordered = [...siblings]
+  reordered[index] = target
+  reordered[index + direction] = image
+
+  await prisma.$transaction(
+    reordered.map((item, position) =>
+      prisma.productImage.update({ where: { id: item.id }, data: { position } })
+    )
+  )
+
+  revalidatePath('/admin/products')
+  revalidatePath('/catalog')
+}
