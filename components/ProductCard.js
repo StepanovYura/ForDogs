@@ -3,7 +3,9 @@ import { formatPrice } from '@/lib/money'
 
 // Карточка в сетке каталога. Пока нет фотографий — аккуратная заглушка
 // вместо «битой» картинки.
-export default function ProductCard({ product }) {
+// priority — для карточек, попадающих в первый экран. Остальные грузятся
+// лениво: их всё равно не видно, пока страницу не прокрутят.
+export default function ProductCard({ product, priority = false }) {
   const cover = product.images?.[0]
   const inStock = product.variants?.some((v) => v.stock > 0)
 
@@ -23,7 +25,8 @@ export default function ProductCard({ product }) {
           <img
             src={cover.thumbUrl || cover.url}
             alt={cover.alt || product.title}
-            loading="lazy"
+            loading={priority ? 'eager' : 'lazy'}
+            fetchPriority={priority ? 'high' : 'auto'}
             decoding="async"
           />
         ) : (
