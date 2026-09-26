@@ -31,12 +31,26 @@ export default function ImageUploader({ productId, colors }) {
         const signed = await signResponse.json()
         if (!signResponse.ok) throw new Error(signed.error || 'Не удалось получить ссылку')
 
+        // Никаких заголовков x-amz-*: в подписанной ссылке подписан только
+        // host, и любой лишний служебный заголовок хранилище считает
+        // подделкой запроса и отвечает 403. Права на чтение уже заданы
+        // параметром x-amz-acl внутри самой ссылки.
         const put = await fetch(signed.uploadUrl, {
           method: 'PUT',
-          headers: { 'Content-Type': file.type, 'x-amz-acl': 'public-read' },
+          headers: { 'Content-Type': file.type },
           body: file,
         })
-        if (!put.ok) throw new Error('Хранилище отклонило загрузку файла')
+        if (!put.ok) {
+          // Хранилище отвечает XML с кодом ошибки — показываем его,
+          // иначе в браузере видно только бесполезное "403".
+          const body = await put.text().catch(() => '')
+          const code = body.match(/<Code>([^<]+)<\/Code>/)?.[1]
+          const message = body.match(/<Message>([^<]+)<\/Message>/)?.[1]
+          throw new Error(
+            `Хранилище отклонило загрузку (${put.status}${code ? ', ' + code : ''})` +
+              (message ? `: ${message}` : '')
+          )
+        }
 
         const attach = await fetch('/api/admin/attach-image', {
           method: 'POST',
