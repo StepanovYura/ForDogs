@@ -1,37 +1,32 @@
 'use client'
 
+import { useCallback, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { compressImage } from './compressor'
 
 // Размеры, в которых храним фотографию.
 // full  — для карточки товара, больше 1600 px на экране всё равно не видно;
-// thumb — для сеток каталога, там картинка показывается мелко.
-const FULL_SIDE = 1600
-const THUMB_SIDE = 600
+// thumb — для сеток каталога и полоски превью, там картинка мелкая.
+const TARGETS = { full: 1600, thumb: 600 }
 const QUALITY = 0.82
 
-// Оригиналы с телефона и «зеркалки» весят по 5–15 МБ. Отдавать такое
-// посетителю бессмысленно: страница грузится десятки секунд. Уменьшаем и
-// пережимаем в WebP прямо в браузере — на сервер уходит уже лёгкий файл.
-async function shrink(file, maxSide, quality) {
-  const bitmap = await createImageBitmap(file)
-  const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height))
-  const width = Math.max(1, Math.round(bitmap.width * scale))
-  const height = Math.max(1, Math.round(bitmap.height * scale))
+// Сколько файлов обрабатываем одновременно. Три — компромисс: сеть
+// загружена, но браузер не захлёбывается на десятке параллельных отправок.
+const PARALLEL = 3
+const RETRIES = 2
 
-  const canvas = document.createElement('canvas')
-  canvas.width = width
-  canvas.height = height
-  const context = canvas.getContext('2d')
-  context.imageSmoothingQuality = 'high'
-  context.drawImage(bitmap, 0, 0, width, height)
-  bitmap.close?.()
+const STATUS_LABELS = {
+  waiting: 'в очереди',
+  compressing: 'сжимаем',
+  uploading: 'загружаем',
+  done: 'готово',
+  error: 'ошибка',
+}
 
-  const blob = await new Promise((resolve) =>
-    canvas.toBlob(resolve, 'image/webp', quality)
-  )
-  if (!blob) throw new Error('Не удалось обработать изображение')
-  return blob
+function formatKb(bytes) {
+  return bytes >= 1024 * 1024
+    ? `${(bytes / 1024 / 1024).toFixed(1)} МБ`
+    : `${Math.round(bytes / 1024)} КБ`
 }
 
 // Загрузка в два шага: просим у сервера подписанную ссылку, затем
@@ -65,78 +60,138 @@ async function putToStorage(blob, fileName) {
         (message ? `: ${message}` : '')
     )
   }
-
   return signed
 }
 
 export default function ImageUploader({ productId, colors }) {
   const router = useRouter()
-  const [busy, setBusy] = useState('')
-  const [error, setError] = useState('')
+  const [items, setItems] = useState([])
+  const [running, setRunning] = useState(false)
   const [colorSlug, setColorSlug] = useState('')
   const [alt, setAlt] = useState('')
 
-  async function handleFiles(event) {
+  // Настройки читаем в момент отправки файла, а не при постановке в очередь:
+  // за время загрузки сотни снимков их менять не будут, а ссылка на
+  // актуальное значение избавляет от устаревших замыканий.
+  const settings = useRef({ colorSlug: '', alt: '' })
+  settings.current = { colorSlug, alt }
+
+  const update = useCallback((id, patch) => {
+    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)))
+  }, [])
+
+  const processOne = useCallback(
+    async (item) => {
+      let lastError = null
+
+      for (let attempt = 0; attempt <= RETRIES; attempt++) {
+        try {
+          update(item.id, { status: 'compressing', error: null })
+          const blobs = await compressImage(item.file, TARGETS, QUALITY)
+
+          update(item.id, { status: 'uploading' })
+          const base = item.file.name.replace(/\.[^.]+$/, '')
+          const [full, thumb] = await Promise.all([
+            putToStorage(blobs.full, `${base}.webp`),
+            putToStorage(blobs.thumb, `${base}-thumb.webp`),
+          ])
+
+          const attach = await fetch('/api/admin/attach-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              productId,
+              url: full.url,
+              key: full.key,
+              thumbUrl: thumb.url,
+              thumbKey: thumb.key,
+              alt: settings.current.alt,
+              colorSlug: settings.current.colorSlug || null,
+            }),
+          })
+          if (!attach.ok) {
+            const data = await attach.json().catch(() => ({}))
+            throw new Error(data.error || 'Не удалось привязать фото к товару')
+          }
+
+          update(item.id, {
+            status: 'done',
+            resultBytes: blobs.full.size + blobs.thumb.size,
+          })
+          return
+        } catch (error) {
+          lastError = error
+          // Отказ хранилища по правам смысла повторять не имеет,
+          // а обрыв сети — вполне.
+          if (/40[13]/.test(error.message)) break
+          if (attempt < RETRIES) await new Promise((r) => setTimeout(r, 800 * (attempt + 1)))
+        }
+      }
+
+      update(item.id, { status: 'error', error: lastError?.message || 'Не удалось загрузить' })
+    },
+    [productId, update]
+  )
+
+  // Очередь с ограничением параллельности: берём следующий файл, как только
+  // освободился один из трёх «слотов», а не ждём всю пачку.
+  const runQueue = useCallback(
+    async (queue) => {
+      setRunning(true)
+      let cursor = 0
+      const workers = Array.from({ length: Math.min(PARALLEL, queue.length) }, async () => {
+        while (cursor < queue.length) {
+          const item = queue[cursor++]
+          await processOne(item)
+        }
+      })
+      await Promise.all(workers)
+      setRunning(false)
+      router.refresh()
+    },
+    [processOne, router]
+  )
+
+  function handleFiles(event) {
     const files = Array.from(event.target.files || [])
     if (files.length === 0) return
 
-    setError('')
+    const queue = files.map((file, index) => ({
+      id: `${Date.now()}-${index}-${file.name}`,
+      file,
+      name: file.name,
+      sourceBytes: file.size,
+      status: 'waiting',
+      error: null,
+      resultBytes: 0,
+    }))
 
-    try {
-      for (const [index, file] of files.entries()) {
-        const label = files.length > 1 ? ` (${index + 1} из ${files.length})` : ''
-
-        setBusy(`Сжимаем${label}…`)
-        const [full, thumb] = await Promise.all([
-          shrink(file, FULL_SIDE, QUALITY),
-          shrink(file, THUMB_SIDE, QUALITY),
-        ])
-
-        setBusy(`Загружаем${label}…`)
-        const base = file.name.replace(/\.[^.]+$/, '')
-        const [fullUpload, thumbUpload] = await Promise.all([
-          putToStorage(full, `${base}.webp`),
-          putToStorage(thumb, `${base}-thumb.webp`),
-        ])
-
-        const attach = await fetch('/api/admin/attach-image', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            productId,
-            url: fullUpload.url,
-            key: fullUpload.key,
-            thumbUrl: thumbUpload.url,
-            thumbKey: thumbUpload.key,
-            alt,
-            colorSlug: colorSlug || null,
-          }),
-        })
-        if (!attach.ok) {
-          const data = await attach.json()
-          throw new Error(data.error || 'Не удалось привязать фото к товару')
-        }
-
-        const saved = Math.round((1 - (full.size + thumb.size) / file.size) * 100)
-        console.log(
-          `${file.name}: ${Math.round(file.size / 1024)} КБ → ` +
-            `${Math.round(full.size / 1024)} + ${Math.round(thumb.size / 1024)} КБ (−${saved}%)`
-        )
-      }
-
-      event.target.value = ''
-      router.refresh()
-    } catch (e) {
-      setError(e.message)
-    } finally {
-      setBusy('')
-    }
+    setItems((prev) => [...prev, ...queue])
+    event.target.value = ''
+    runQueue(queue)
   }
+
+  function retryFailed() {
+    const failed = items.filter((i) => i.status === 'error')
+    if (failed.length === 0) return
+    setItems((prev) =>
+      prev.map((i) => (i.status === 'error' ? { ...i, status: 'waiting', error: null } : i))
+    )
+    runQueue(failed)
+  }
+
+  function clearFinished() {
+    setItems((prev) => prev.filter((i) => i.status !== 'done'))
+  }
+
+  const done = items.filter((i) => i.status === 'done').length
+  const failed = items.filter((i) => i.status === 'error').length
+  const saved = items
+    .filter((i) => i.status === 'done')
+    .reduce((sum, i) => sum + (i.sourceBytes - i.resultBytes), 0)
 
   return (
     <div>
-      {error && <div className="form-error">{error}</div>}
-
       <div className="inline-form" style={{ marginBottom: 10 }}>
         <select
           className="select"
@@ -164,16 +219,72 @@ export default function ImageUploader({ productId, colors }) {
         type="file"
         accept="image/jpeg,image/png,image/webp,image/avif"
         multiple
-        disabled={Boolean(busy)}
         onChange={handleFiles}
       />
-      {busy && <p className="small muted">{busy}</p>}
+
       <p className="small muted" style={{ marginBottom: 0 }}>
-        Фотография уменьшается до {FULL_SIDE} px и пережимается в WebP прямо
-        здесь, в браузере — в хранилище уходит лёгкий файл. Отдельно
-        сохраняется миниатюра {THUMB_SIDE} px для каталога. Первое фото
-        становится обложкой.
+        Можно выбрать сразу несколько файлов. Каждый уменьшается до{' '}
+        {TARGETS.full} px и пережимается в WebP прямо здесь, в браузере;
+        отдельно сохраняется миниатюра {TARGETS.thumb} px для каталога.
+        Цвет и подпись берутся из полей выше в момент отправки.
       </p>
+
+      {items.length > 0 && (
+        <div style={{ marginTop: 18 }}>
+          <div
+            style={{
+              display: 'flex',
+              gap: 12,
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              marginBottom: 10,
+            }}
+          >
+            <strong className="small">
+              Готово {done} из {items.length}
+            </strong>
+            {failed > 0 && <span className="badge badge--canceled">ошибок: {failed}</span>}
+            {saved > 0 && (
+              <span className="small muted">сэкономлено {formatKb(saved)}</span>
+            )}
+            {failed > 0 && !running && (
+              <button type="button" className="btn btn--ghost btn--sm" onClick={retryFailed}>
+                Повторить неудачные
+              </button>
+            )}
+            {done > 0 && !running && (
+              <button type="button" className="link-underline" onClick={clearFinished}>
+                Убрать завершённые
+              </button>
+            )}
+          </div>
+
+          <div className="table-wrap">
+            <table className="table">
+              <tbody>
+                {items.map((item) => (
+                  <tr key={item.id}>
+                    <td style={{ maxWidth: 260, overflowWrap: 'anywhere' }}>{item.name}</td>
+                    <td className="muted small">{formatKb(item.sourceBytes)}</td>
+                    <td className="small">
+                      {item.status === 'done' && item.resultBytes > 0 ? (
+                        <span style={{ color: 'var(--ok)' }}>
+                          → {formatKb(item.resultBytes)}
+                        </span>
+                      ) : (
+                        <span className="muted">{STATUS_LABELS[item.status]}…</span>
+                      )}
+                    </td>
+                    <td className="small" style={{ color: 'var(--danger)' }}>
+                      {item.error}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
