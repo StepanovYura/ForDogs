@@ -13,7 +13,8 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Нет доступа' }, { status: 403 })
   }
 
-  const { productId, url, key, alt, colorSlug } = await request.json().catch(() => ({}))
+  const { productId, url, key, thumbUrl, thumbKey, alt, colorSlug } =
+    await request.json().catch(() => ({}))
   if (!productId || !url) {
     return NextResponse.json({ error: 'Некорректный запрос' }, { status: 400 })
   }
@@ -24,6 +25,8 @@ export async function POST(request) {
       productId,
       url,
       key: key || null,
+      thumbUrl: thumbUrl || null,
+      thumbKey: thumbKey || null,
       alt: alt || '',
       colorSlug: colorSlug || null,
       position: count,

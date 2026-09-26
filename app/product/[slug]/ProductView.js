@@ -101,7 +101,7 @@ export default function ProductView({ product, sizeGuide }) {
                 aria-label={`Фото ${index + 1}`}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={image.url} alt="" />
+                <img src={image.thumbUrl || image.url} alt="" loading="lazy" />
               </button>
             ))
           ) : (

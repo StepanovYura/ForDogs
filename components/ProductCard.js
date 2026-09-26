@@ -20,7 +20,12 @@ export default function ProductCard({ product }) {
       <div className="card__media">
         {cover ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={cover.url} alt={cover.alt || product.title} loading="lazy" />
+          <img
+            src={cover.thumbUrl || cover.url}
+            alt={cover.alt || product.title}
+            loading="lazy"
+            decoding="async"
+          />
         ) : (
           <div className="card__placeholder">{product.title}</div>
         )}

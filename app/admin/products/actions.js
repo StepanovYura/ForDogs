@@ -102,6 +102,7 @@ export async function deleteProductAction(formData) {
   // Сначала убираем файлы из хранилища, потом запись — иначе ключи потеряются.
   for (const image of product.images) {
     await deleteObject(image.key)
+    await deleteObject(image.thumbKey)
   }
   await prisma.product.delete({ where: { id } })
 
@@ -157,6 +158,7 @@ export async function deleteImageAction(formData) {
   if (!image) return
 
   await deleteObject(image.key)
+  await deleteObject(image.thumbKey)
   await prisma.productImage.delete({ where: { id } })
 
   revalidatePath('/admin/products')
