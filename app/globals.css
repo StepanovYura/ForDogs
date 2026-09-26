@@ -83,12 +83,17 @@ textarea {
   flex: 1;
 }
 
+/* Только вертикальные отступы: если задать padding целиком, он обнулит
+   горизонтальные отступы .page на элементах вида <div class="page section">
+   и содержимое прилипнет к краям экрана. */
 .section {
-  padding: 64px 0;
+  padding-top: 64px;
+  padding-bottom: 64px;
 }
 
 .section--tight {
-  padding: 36px 0;
+  padding-top: 36px;
+  padding-bottom: 36px;
 }
 
 /* ───────────────────────── Типографика ────────────────────────── */
@@ -1037,8 +1042,11 @@ textarea {
 /* ─────────────────────────── Адаптив ───────────────────────────── */
 
 @media (max-width: 1024px) {
+  /* ───── Планшет ───── */
+
   .product {
     grid-template-columns: 72px minmax(0, 1fr);
+    gap: 20px 24px;
   }
 
   .product__side {
@@ -1047,6 +1055,7 @@ textarea {
 
   .cart-layout {
     grid-template-columns: 1fr;
+    gap: 32px;
   }
 
   .summary {
@@ -1064,10 +1073,20 @@ textarea {
 
   .footer__grid {
     grid-template-columns: 1fr 1fr;
+    gap: 28px;
+  }
+
+  .nav {
+    gap: 22px;
+  }
+
+  .header__actions {
+    gap: 14px;
   }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 860px) {
+  /* Меню в строку уже не помещается — прячем под кнопку «Меню». */
   .nav {
     display: none;
   }
@@ -1075,19 +1094,25 @@ textarea {
   .nav--open {
     display: flex;
     position: absolute;
-    top: 72px;
+    top: 100%;
     left: 0;
     right: 0;
     background: #fff;
     border-bottom: 1px solid var(--line);
     flex-direction: column;
     gap: 0;
-    padding: 8px 20px 20px;
+    padding: 4px 20px 16px;
+    box-shadow: 0 12px 24px rgba(26, 26, 26, 0.08);
   }
 
   .nav--open a {
-    padding: 12px 0;
+    padding: 14px 0;
     border-bottom: 1px solid var(--line);
+    font-size: 13px;
+  }
+
+  .nav--open a:last-child {
+    border-bottom: 0;
   }
 
   .burger {
@@ -1097,32 +1122,203 @@ textarea {
   .header__inner {
     position: relative;
   }
+}
 
-  .hero {
-    grid-template-columns: 1fr;
-    gap: 28px;
+@media (max-width: 720px) {
+  /* ───── Телефон ───── */
+
+  :root {
+    --gap: 16px;
   }
 
+  .page {
+    padding: 0 16px;
+  }
+
+  .section {
+    padding-top: 40px;
+    padding-bottom: 40px;
+  }
+
+  .section--tight {
+    padding-top: 20px;
+    padding-bottom: 20px;
+  }
+
+  .h1 {
+    font-size: 24px;
+    margin-bottom: 12px;
+  }
+
+  .h2 {
+    font-size: 18px;
+    margin-bottom: 18px;
+  }
+
+  /* Шапка: ниже и компактнее, чтобы не съедать первый экран. */
+  .header__inner {
+    height: 60px;
+    gap: 12px;
+  }
+
+  .logo__name {
+    font-size: 16px;
+    letter-spacing: 0.18em;
+  }
+
+  .logo__sub {
+    font-size: 8px;
+    letter-spacing: 0.3em;
+  }
+
+  .header__actions {
+    gap: 12px;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+  }
+
+  .nav--open {
+    padding: 4px 16px 16px;
+  }
+
+  /* Две колонки товаров: по одной карточке на экран — это бесконечная
+     прокрутка ради шести позиций. */
+  .grid-products {
+    grid-template-columns: 1fr 1fr;
+    gap: 26px 12px;
+  }
+
+  .card__title {
+    font-size: 12px;
+    letter-spacing: 0.06em;
+  }
+
+  .card__price {
+    font-size: 13px;
+  }
+
+  /* Фильтры — лентой с прокруткой: в столбик они занимают пол-экрана. */
+  .filters {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin: 0 -16px 24px;
+    padding: 0 16px 4px;
+    scrollbar-width: none;
+  }
+
+  .filters::-webkit-scrollbar {
+    display: none;
+  }
+
+  .filters a {
+    flex: 0 0 auto;
+    padding: 8px 14px;
+    font-size: 10px;
+  }
+
+  .crumbs {
+    padding: 14px 0;
+    font-size: 11px;
+  }
+
+  /* Карточка товара: фото, затем полоска превью, затем описание. */
   .product {
     grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .product__main {
+    order: 1;
+    aspect-ratio: 3 / 4;
+    margin: 0 -16px;
   }
 
   .product__thumbs {
+    order: 2;
     flex-direction: row;
     overflow-x: auto;
-    order: 2;
+    gap: 8px;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+
+  .product__thumbs::-webkit-scrollbar {
+    display: none;
   }
 
   .product__thumbs .thumb {
-    flex: 0 0 68px;
+    flex: 0 0 64px;
+  }
+
+  .product__side {
+    order: 3;
+  }
+
+  .product__price {
+    font-size: 20px;
+    margin-bottom: 18px;
+  }
+
+  /* Кружки цветов и размеры — под палец, а не под курсор. */
+  .swatch {
+    width: 32px;
+    height: 32px;
+  }
+
+  .size {
+    min-width: 52px;
+    padding: 13px 8px;
+  }
+
+  .btn {
+    padding: 15px 22px;
+  }
+
+  .hero {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    padding: 28px 0 40px;
+  }
+
+  .hero__media {
+    order: -1;
+    margin: 0 -16px;
+    aspect-ratio: 4 / 3;
   }
 
   .detail-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 36px;
+  }
+
+  .detail-caption {
+    font-size: 10px;
   }
 
   .lookbook {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .lookbook__text h2 {
+    font-size: 20px;
+  }
+
+  /* Корзина: картинка уже, кнопки не налезают друг на друга. */
+  .cart-row {
+    grid-template-columns: 68px minmax(0, 1fr);
+    gap: 14px;
+    padding: 16px 0;
+  }
+
+  .cart-row > div:last-child {
+    grid-column: 2;
+    text-align: left;
+  }
+
+  .summary {
+    padding: 20px 16px;
   }
 
   .row-2,
@@ -1130,15 +1326,57 @@ textarea {
     grid-template-columns: 1fr;
   }
 
+  .panel {
+    padding: 18px 16px;
+  }
+
+  .modal {
+    padding: 20px 16px;
+  }
+
+  .footer {
+    margin-top: 48px;
+    padding: 36px 0 32px;
+  }
+
   .footer__grid {
     grid-template-columns: 1fr;
+    gap: 26px;
+  }
+
+  .footer__bottom {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .admin-tabs {
+    gap: 16px;
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: none;
+  }
+
+  .admin-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .empty {
+    padding: 48px 12px;
+  }
+}
+
+@media (max-width: 380px) {
+  /* Совсем узкие экраны: убираем лишние миллиметры, ничего не пряча. */
+  .header__actions {
+    gap: 10px;
+    font-size: 10px;
+  }
+
+  .grid-products {
+    gap: 22px 10px;
   }
 
   .h1 {
-    font-size: 26px;
-  }
-
-  .section {
-    padding: 40px 0;
+    font-size: 21px;
   }
 }

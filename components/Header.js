@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { useCart } from '@/context/CartContext'
 
-export default function Header({ user, categories = [] }) {
+export default function Header({ user }) {
   const { count } = useCart()
   const [open, setOpen] = useState(false)
 
@@ -18,11 +18,6 @@ export default function Header({ user, categories = [] }) {
 
         <nav className={open ? 'nav nav--open' : 'nav'} onClick={() => setOpen(false)}>
           <Link href="/catalog">Каталог</Link>
-          {categories.slice(0, 2).map((c) => (
-            <Link key={c.id} href={`/catalog?category=${c.slug}`}>
-              {c.title}
-            </Link>
-          ))}
           <Link prefetch={false} href="/about">О бренде</Link>
           <Link prefetch={false} href="/delivery">Доставка</Link>
           <Link prefetch={false} href="/contacts">Контакты</Link>

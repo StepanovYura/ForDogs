@@ -42,7 +42,7 @@ export default async function RootLayout({ children }) {
       <body>
         <CartProvider>
           <div className="layout">
-            <Header user={user} categories={categories} />
+            <Header user={user} />
             <main>{children}</main>
             <Footer categories={categories} />
           </div>
