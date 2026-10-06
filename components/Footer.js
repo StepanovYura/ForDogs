@@ -10,7 +10,7 @@ export default function Footer({ categories = [] }) {
             <div className="logo__sub" style={{ marginBottom: 14 }}>
               STUDIO
             </div>
-            <p className="small muted" style={{ maxWidth: 260, margin: 0 }}>
+            <p className="small muted footer__about" style={{ maxWidth: 260, margin: 0 }}>
               Минималистичная одежда для собак. Шьём небольшими партиями,
               проверяем посадку на живых собаках, а не на манекенах.
             </p>
@@ -66,7 +66,7 @@ export default function Footer({ categories = [] }) {
 
         <div className="footer__bottom">
           <span>© {new Date().getFullYear()} NIXDOG STUDIO</span>
-          <span>Оплата картой через ЮKassa</span>
+          <span>Оплата картой и через СБП</span>
         </div>
       </div>
     </footer>

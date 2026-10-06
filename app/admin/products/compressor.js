@@ -16,11 +16,13 @@ self.onmessage = async (event) => {
   try {
     const bitmap = await createImageBitmap(file)
     const results = {}
+    const sizes = { source: { width: bitmap.width, height: bitmap.height } }
     for (const name of Object.keys(targets)) {
       const maxSide = targets[name]
       const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height))
       const width = Math.max(1, Math.round(bitmap.width * scale))
       const height = Math.max(1, Math.round(bitmap.height * scale))
+      sizes[name] = { width, height }
       const canvas = new OffscreenCanvas(width, height)
       const context = canvas.getContext('2d')
       context.imageSmoothingQuality = 'high'
@@ -28,7 +30,7 @@ self.onmessage = async (event) => {
       results[name] = await canvas.convertToBlob({ type: 'image/webp', quality })
     }
     bitmap.close()
-    self.postMessage({ id, results })
+    self.postMessage({ id, results, sizes })
   } catch (error) {
     self.postMessage({ id, error: String(error && error.message ? error.message : error) })
   }
@@ -57,13 +59,13 @@ function getPool() {
     const worker = new Worker(url)
     const entry = { worker, busy: false, pending: new Map() }
     worker.onmessage = (event) => {
-      const { id, results, error } = event.data
+      const { id, results, sizes, error } = event.data
       const task = entry.pending.get(id)
       if (!task) return
       entry.pending.delete(id)
       entry.busy = false
       if (error) task.reject(new Error(error))
-      else task.resolve(results)
+      else task.resolve({ ...results, sizes })
       drain()
     }
     worker.onerror = (event) => {
@@ -112,11 +114,13 @@ function getPool() {
 async function compressInMainThread(file, targets, quality) {
   const bitmap = await createImageBitmap(file)
   const results = {}
+  const sizes = { source: { width: bitmap.width, height: bitmap.height } }
   for (const name of Object.keys(targets)) {
     const maxSide = targets[name]
     const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height))
     const width = Math.max(1, Math.round(bitmap.width * scale))
     const height = Math.max(1, Math.round(bitmap.height * scale))
+    sizes[name] = { width, height }
 
     const canvas = document.createElement('canvas')
     canvas.width = width
@@ -131,10 +135,12 @@ async function compressInMainThread(file, targets, quality) {
     if (!results[name]) throw new Error('Не удалось сжать изображение')
   }
   bitmap.close?.()
-  return results
+  return { ...results, sizes }
 }
 
-// targets — например { full: 1600, thumb: 600 }
+// targets — например { full: 1600, thumb: 600 }.
+// Возвращает { full: Blob, thumb: Blob, sizes: { source, full, thumb } },
+// где sizes — ширина и высота исходника и каждой копии в пикселях.
 export async function compressImage(file, targets, quality) {
   if (!workersSupported()) return compressInMainThread(file, targets, quality)
   try {

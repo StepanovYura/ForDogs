@@ -79,6 +79,12 @@ export default async function MyOrdersPage() {
               Доставка: {order.city}, {order.address}
               {order.postalCode ? `, ${order.postalCode}` : ''}
             </p>
+
+            {order.status === 'PENDING' && order.paymentUrl && (
+              <Link href={`/order/${order.id}`} className="btn btn--sm" style={{ marginTop: 16 }}>
+                Перейти к оплате
+              </Link>
+            )}
           </div>
         ))
       )}

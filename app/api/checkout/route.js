@@ -2,12 +2,14 @@
 //  1) проверяем вход;
 //  2) в одной транзакции перечитываем цены и остатки ИЗ БАЗЫ и списываем их
 //     (цену из браузера не берём — её легко подменить);
-//  3) создаём платёж в ЮKassa и отдаём ссылку на оплату.
+//  3) создаём платёж в банке выбранным способом: QR-код СБП оплачивают на
+//     странице заказа, картой — на платёжной странице банка.
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth'
 import { checkoutSchema } from '@/lib/validation'
-import { createPayment } from '@/lib/yookassa'
+import { cancelOrder } from '@/lib/orders'
+import { expireStalePayments, startPayment } from '@/lib/payments'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,6 +31,10 @@ export async function POST(request) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 })
   }
   const input = parsed.data
+
+  // Снимаем резерв с заказов, чей QR истёк, — иначе последняя вещь может
+  // числиться занятой за тем, кто давно ушёл со страницы оплаты.
+  await expireStalePayments().catch(() => {})
 
   let order
   try {
@@ -101,44 +107,19 @@ export async function POST(request) {
 
   // Платёж создаём уже вне транзакции: внешний запрос не должен держать базу.
   try {
-    const site = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-    const payment = await createPayment({
-      order,
-      returnUrl: `${site.replace(/\/$/, '')}/order/${order.id}`,
-    })
-
-    await prisma.order.update({
-      where: { id: order.id },
-      data: { paymentId: payment.id, paymentStatus: payment.status },
-    })
-
-    return NextResponse.json({
-      orderId: order.id,
-      confirmationUrl: payment.confirmation?.confirmation_url,
-    })
+    const payment = await startPayment(order, input.paymentMethod)
+    // СБП — на нашу страницу заказа с QR-кодом; карта — на платёжную
+    // страницу банка, оттуда банк вернёт покупателя на страницу заказа.
+    const redirectUrl = input.paymentMethod === 'card' ? payment.url : `/order/${order.id}`
+    return NextResponse.json({ orderId: order.id, redirectUrl })
   } catch (error) {
-    // Платёж не создался — возвращаем товары на склад и отменяем заказ,
+    // Банк не создал платёж — возвращаем товары на склад и отменяем заказ,
     // иначе остатки «зависнут» в никуда.
-    await releaseOrder(order.id).catch(() => {})
+    console.error('Оплата: не удалось создать платёж', error)
+    await cancelOrder(order.id).catch(() => {})
     return NextResponse.json(
       { error: error.message || 'Оплата временно недоступна' },
       { status: 502 }
     )
   }
-}
-
-async function releaseOrder(orderId) {
-  await prisma.$transaction(async (tx) => {
-    const current = await tx.order.findUnique({ where: { id: orderId }, include: { items: true } })
-    if (!current || current.status !== 'PENDING') return
-    for (const item of current.items) {
-      if (item.variantId) {
-        await tx.productVariant.update({
-          where: { id: item.variantId },
-          data: { stock: { increment: item.quantity } },
-        })
-      }
-    }
-    await tx.order.update({ where: { id: orderId }, data: { status: 'CANCELED' } })
-  })
 }

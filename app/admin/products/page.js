@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { getCategories } from '@/lib/categories'
 import NewProductForm from './NewProductForm'
-import ProductRow from './ProductRow'
+import { formatPrice } from '@/lib/money'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,9 +28,13 @@ export default async function AdminProductsPage({ searchParams }) {
     prisma.product.count({ where }),
     prisma.product.findMany({
       where,
+      // Для списка хватает обложки и остатков — всё остальное грузит
+      // страница конкретного товара.
       include: {
-        images: { orderBy: { position: 'asc' } },
-        variants: { orderBy: [{ colorName: 'asc' }, { size: 'asc' }] },
+        category: { select: { title: true } },
+        images: { orderBy: { position: 'asc' }, take: 1, select: { url: true, thumbUrl: true } },
+        variants: { select: { stock: true } },
+        _count: { select: { images: true } },
       },
       orderBy: [{ position: 'asc' }, { createdAt: 'desc' }],
       skip: (page - 1) * PER_PAGE,
@@ -80,13 +84,38 @@ export default async function AdminProductsPage({ searchParams }) {
           <p>Ничего не найдено.</p>
         </div>
       ) : (
-        products.map((product) => (
-          <ProductRow
-            key={product.id}
-            product={plain(product)}
-            categories={plain(categories)}
-          />
-        ))
+        <div className="panel" style={{ padding: 0 }}>
+          {products.map((product) => {
+            const cover = product.images[0]
+            const stock = product.variants.reduce((sum, v) => sum + v.stock, 0)
+            return (
+              <Link key={product.id} href={`/admin/products/${product.id}`} className="admin-product-row">
+                <div className="admin-product-row__thumb">
+                  {cover && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={cover.thumbUrl || cover.url} alt="" loading="lazy" />
+                  )}
+                </div>
+                <div className="admin-product-row__main">
+                  <strong>{product.title}</strong>
+                  {!product.isActive && (
+                    <span className="badge badge--canceled" style={{ marginLeft: 10 }}>
+                      Скрыт
+                    </span>
+                  )}
+                  <div className="small muted">
+                    {product.category?.title || 'без категории'} · вариантов: {product.variants.length}{' '}
+                    · на складе: {stock} шт. · фото: {product._count.images}
+                  </div>
+                </div>
+                <div className="admin-product-row__price">{formatPrice(product.priceKopeks)}</div>
+                <span className="admin-product-row__go" aria-hidden="true">
+                  →
+                </span>
+              </Link>
+            )
+          })}
+        </div>
       )}
 
       {pages > 1 && (

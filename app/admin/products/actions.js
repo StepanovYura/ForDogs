@@ -1,34 +1,11 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/auth'
 import { deleteObject } from '@/lib/storage'
-
-function slugify(value) {
-  return String(value)
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-zа-яё0-9]+/gi, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 60)
-}
-
-// Транслитерация, чтобы адрес товара был латиницей.
-const MAP = {
-  а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'e', ж: 'zh', з: 'z',
-  и: 'i', й: 'j', к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r',
-  с: 's', т: 't', у: 'u', ф: 'f', х: 'h', ц: 'c', ч: 'ch', ш: 'sh', щ: 'sch',
-  ъ: '', ы: 'y', ь: '', э: 'e', ю: 'yu', я: 'ya',
-}
-
-function translit(value) {
-  return String(value)
-    .toLowerCase()
-    .split('')
-    .map((ch) => (ch in MAP ? MAP[ch] : ch))
-    .join('')
-}
+import { slugify, translit } from '@/lib/slug'
 
 function rublesToKopeks(value) {
   const number = Number(String(value).replace(',', '.'))
@@ -51,7 +28,7 @@ export async function createProductAction(_prevState, formData) {
     slug = `${slug}-${Date.now().toString().slice(-4)}`
   }
 
-  await prisma.product.create({
+  const product = await prisma.product.create({
     data: {
       slug,
       title,
@@ -63,9 +40,10 @@ export async function createProductAction(_prevState, formData) {
     },
   })
 
-  revalidatePath('/admin/products')
+  revalidatePath('/admin/products', 'layout')
   revalidatePath('/catalog')
-  return { ok: `Товар «${title}» добавлен. Теперь добавьте цвета, размеры и фото.` }
+  // Сразу на страницу нового товара: дальше там добавляют цвета, размеры и фото.
+  redirect(`/admin/products/${product.id}?created=1`)
 }
 
 export async function updateProductAction(formData) {
@@ -85,10 +63,13 @@ export async function updateProductAction(formData) {
       categoryId: String(formData.get('categoryId') || '') || null,
       isActive: formData.get('isActive') === 'on',
       position: Number(formData.get('position') || 0) || 0,
+      ...(formData.get('tagsEditable')
+        ? { tags: { set: formData.getAll('tagIds').map((tagId) => ({ id: String(tagId) })) } }
+        : {}),
     },
   })
 
-  revalidatePath('/admin/products')
+  revalidatePath('/admin/products', 'layout')
   revalidatePath('/catalog')
 }
 
@@ -106,8 +87,9 @@ export async function deleteProductAction(formData) {
   }
   await prisma.product.delete({ where: { id } })
 
-  revalidatePath('/admin/products')
+  revalidatePath('/admin/products', 'layout')
   revalidatePath('/catalog')
+  redirect('/admin/products')
 }
 
 export async function upsertVariantAction(formData) {
@@ -128,7 +110,7 @@ export async function upsertVariantAction(formData) {
     create: { productId, colorSlug, colorName, colorHex, size, stock },
   })
 
-  revalidatePath('/admin/products')
+  revalidatePath('/admin/products', 'layout')
   revalidatePath('/catalog')
 }
 
@@ -139,14 +121,14 @@ export async function setVariantStockAction(formData) {
   const stock = Math.max(0, Number(formData.get('stock') || 0) || 0)
   await prisma.productVariant.update({ where: { id }, data: { stock } })
 
-  revalidatePath('/admin/products')
+  revalidatePath('/admin/products', 'layout')
 }
 
 export async function deleteVariantAction(formData) {
   await requireAdmin()
 
   await prisma.productVariant.delete({ where: { id: String(formData.get('variantId')) } })
-  revalidatePath('/admin/products')
+  revalidatePath('/admin/products', 'layout')
   revalidatePath('/catalog')
 }
 
@@ -161,7 +143,7 @@ export async function deleteImageAction(formData) {
   await deleteObject(image.thumbKey)
   await prisma.productImage.delete({ where: { id } })
 
-  revalidatePath('/admin/products')
+  revalidatePath('/admin/products', 'layout')
   revalidatePath('/catalog')
 }
 
@@ -176,8 +158,9 @@ export async function moveImageAction(formData) {
   const image = await prisma.productImage.findUnique({ where: { id } })
   if (!image) return
 
+  // Соседи — фото того же цвета: в админке и на сайте они идут своей лентой.
   const siblings = await prisma.productImage.findMany({
-    where: { productId: image.productId },
+    where: { productId: image.productId, colorSlug: image.colorSlug },
     orderBy: { position: 'asc' },
   })
 
@@ -197,6 +180,31 @@ export async function moveImageAction(formData) {
     )
   )
 
-  revalidatePath('/admin/products')
+  revalidatePath('/admin/products', 'layout')
+  revalidatePath('/catalog')
+}
+
+// Фото без цвета (из прежней версии админки) — переносим к цвету.
+// В конец ленты этого цвета, чтобы не сбить уже выбранное главное фото.
+export async function setImageColorAction(formData) {
+  await requireAdmin()
+
+  const id = String(formData.get('imageId'))
+  const colorSlug = String(formData.get('colorSlug') || '')
+  if (!colorSlug) return
+
+  const image = await prisma.productImage.findUnique({ where: { id } })
+  if (!image) return
+  const last = await prisma.productImage.aggregate({
+    where: { productId: image.productId },
+    _max: { position: true },
+  })
+
+  await prisma.productImage.update({
+    where: { id },
+    data: { colorSlug, position: (last._max.position ?? 0) + 1 },
+  })
+
+  revalidatePath('/admin/products', 'layout')
   revalidatePath('/catalog')
 }

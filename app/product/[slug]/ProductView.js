@@ -1,18 +1,26 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useCart } from '@/context/CartContext'
 import { formatPrice } from '@/lib/money'
 import Accordion from '@/components/Accordion'
 import SizeGuideModal from '@/components/SizeGuideModal'
+import FavoriteButton from '@/components/FavoriteButton'
+import ReadMore from '@/components/ReadMore'
 
 const SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL']
 // Порядок цветов на карточке. Из базы варианты приходят отсортированными
 // по алфавиту, и первым оказывался бежевый — поэтому задаём порядок явно,
 // чтобы по умолчанию выбирался основной цвет модели.
 const COLOR_ORDER = ['burgundy', 'beige', 'grey', 'black']
+
+// Рамка фото повторяет пропорции снимка: фото видно целиком и без полей.
+// Совсем экзотические пропорции (панорама, «сторис») ограничиваем, чтобы
+// рамка не стала вдвое выше экрана, — тогда по краям будет фон.
+const DEFAULT_RATIO = 2 / 3
+const clampRatio = (r) => Math.min(Math.max(r, 9 / 16), 4 / 3)
 
 export default function ProductView({ product, sizeGuide }) {
   const router = useRouter()
@@ -37,6 +45,20 @@ export default function ProductView({ product, sizeGuide }) {
   const [size, setSize] = useState(null)
   const [shot, setShot] = useState(0)
   const [flash, setFlash] = useState('')
+  // Пропорции старых фото, у которых размер не записан в базе, узнаём,
+  // когда картинка загрузилась.
+  const [measured, setMeasured] = useState({})
+  const ratioOf = (image) => {
+    if (!image) return DEFAULT_RATIO
+    const r = image.width && image.height ? image.width / image.height : measured[image.id]
+    return clampRatio(r || DEFAULT_RATIO)
+  }
+  const measure = (image) => (event) => {
+    const { naturalWidth: w, naturalHeight: h } = event.currentTarget
+    if (!image.width && w && h && !measured[image.id]) {
+      setMeasured((prev) => ({ ...prev, [image.id]: w / h }))
+    }
+  }
 
   // Размеры выбранного цвета, в привычном порядке XS → XL.
   const sizes = useMemo(() => {
@@ -45,12 +67,25 @@ export default function ProductView({ product, sizeGuide }) {
       .sort((a, b) => SIZE_ORDER.indexOf(a.size) - SIZE_ORDER.indexOf(b.size))
   }, [product.variants, color])
 
-  // Фото: сначала снимки выбранного цвета, затем общие.
+  // Фотографии выбранного цвета, за ними — общие фото товара.
   const gallery = useMemo(() => {
     const byColor = product.images.filter((i) => i.colorSlug === color)
     const common = product.images.filter((i) => !i.colorSlug)
-    return byColor.length ? [...byColor, ...common] : product.images
+    return [...byColor, ...common]
   }, [product.images, color])
+
+  // Лента фото на телефоне листается пальцем; точки под ней показывают,
+  // какое фото сейчас на экране.
+  const slider = useRef(null)
+  function onSlide() {
+    const track = slider.current
+    if (!track) return
+    setShot(Math.round(track.scrollLeft / track.clientWidth))
+  }
+  function goToSlide(index) {
+    const track = slider.current
+    if (track) track.scrollTo({ left: index * track.clientWidth, behavior: 'smooth' })
+  }
 
   const selectedVariant = sizes.find((v) => v.size === size) || null
   const activeColor = colors.find((c) => c.slug === color)
@@ -60,6 +95,7 @@ export default function ProductView({ product, sizeGuide }) {
     setColor(slug)
     setSize(null)
     setShot(0)
+    slider.current?.scrollTo({ left: 0 })
   }
 
   function addToCart(thenCheckout = false) {
@@ -88,51 +124,111 @@ export default function ProductView({ product, sizeGuide }) {
   return (
     <>
       <div className="product">
-        {/* Миниатюры слева */}
-        <div className="product__thumbs">
-          {gallery.length > 0 ? (
-            gallery.map((image, index) => (
-              <button
-                key={image.id}
-                type="button"
-                className="thumb"
-                aria-current={index === shot}
-                onClick={() => setShot(index)}
-                aria-label={`Фото ${index + 1}`}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={image.thumbUrl || image.url} alt="" loading="lazy" />
-              </button>
-            ))
-          ) : (
-            <div className="thumb" aria-hidden="true" />
-          )}
+        {/* Компьютер и планшет: превью слева, большое фото справа.
+            Лента превью занимает ровно высоту большого фото и прокручивается
+            внутри себя — карточка не растёт от количества снимков. */}
+        <div className="product__gallery">
+          <div className="product__thumbs">
+            <div className="product__thumbs-scroll">
+              {gallery.length > 0 ? (
+                gallery.map((image, index) => (
+                  <button
+                    key={image.id}
+                    type="button"
+                    className="thumb"
+                    aria-current={index === shot}
+                    onClick={() => setShot(index)}
+                    aria-label={`Фото ${index + 1}`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={image.thumbUrl || image.url} alt="" loading="lazy" />
+                  </button>
+                ))
+              ) : (
+                <div className="thumb" aria-hidden="true" />
+              )}
+            </div>
+          </div>
+
+          <div className="product__main" style={{ '--ratio': ratioOf(main) }}>
+            {main ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={main.id}
+                src={main.url}
+                alt={main.alt || product.title}
+                fetchPriority="high"
+                decoding="async"
+                onLoad={measure(main)}
+              />
+            ) : (
+              <div className="card__placeholder">Фото скоро появится</div>
+            )}
+          </div>
         </div>
 
-        {/* Основное фото */}
-        <div className="product__main">
-          {main ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={main.url}
-              alt={main.alt || product.title}
-              fetchPriority="high"
-              decoding="async"
-            />
-          ) : (
-            <div className="card__placeholder">Фото скоро появится</div>
+        {/* Телефон: фото листаются пальцем, превью не нужны. */}
+        <div className="product__slider">
+          {/* Все слайды одной высоты — по пропорциям первого фото, иначе
+              лента прыгала бы при перелистывании. */}
+          <div
+            className="slider"
+            ref={slider}
+            onScroll={onSlide}
+            style={{ '--slide-ratio': ratioOf(gallery[0]) }}
+          >
+            {gallery.length > 0 ? (
+              gallery.map((image, index) => (
+                <div className="slider__slide" key={image.id}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={image.url}
+                    alt={image.alt || product.title}
+                    loading={index === 0 ? 'eager' : 'lazy'}
+                    decoding="async"
+                    onLoad={index === 0 ? measure(image) : undefined}
+                  />
+                </div>
+              ))
+            ) : (
+              <div className="slider__slide">
+                <div className="card__placeholder">Фото скоро появится</div>
+              </div>
+            )}
+          </div>
+          {/* Точки — пока фото немного; дальше они превращаются в бисер,
+              и понятнее простой счётчик. */}
+          {gallery.length > 10 ? (
+            <div className="slider__counter caption">
+              {Math.min(shot, gallery.length - 1) + 1} / {gallery.length}
+            </div>
+          ) : gallery.length > 1 && (
+            <div className="slider__dots">
+              {gallery.map((image, index) => (
+                <button
+                  key={image.id}
+                  type="button"
+                  aria-label={`Фото ${index + 1}`}
+                  aria-current={index === shot}
+                  onClick={() => goToSlide(index)}
+                />
+              ))}
+            </div>
           )}
         </div>
 
         {/* Правая колонка */}
         <div className="product__side">
-          <h1 className="h1">{product.title}</h1>
+          <div className="product__title-row">
+            <h1 className="h1">{product.title}</h1>
+            <FavoriteButton productId={product.id} className="fav-btn fav-btn--inline" />
+          </div>
           <div className="product__price">{formatPrice(product.priceKopeks)}</div>
 
           {product.description && (
-            <p className="muted" style={{ marginTop: 0 }}>
+            <ReadMore lines={3} className="muted product__description">
               {product.description}
-            </p>
+            </ReadMore>
           )}
 
           {colors.length > 0 && (
@@ -210,30 +306,12 @@ export default function ProductView({ product, sizeGuide }) {
 
           <Accordion
             items={[
-              { title: 'Описание', body: product.description },
               { title: 'Состав и уход', body: product.composition },
               { title: 'Доставка и возврат', body: product.delivery },
             ]}
           />
         </div>
       </div>
-
-      {/* Плитки с деталями — как в референсе */}
-      {gallery.length > 1 && (
-        <div className="detail-grid">
-          {gallery.slice(1, 4).map((image, index) => (
-            <div key={image.id}>
-              <div className="detail-tile">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={image.url} alt={image.alt || product.title} loading="lazy" />
-              </div>
-              <div className="detail-caption caption">
-                {image.alt || ['Вид сзади', 'Детали', 'Манжеты'][index]}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </>
   )
 }

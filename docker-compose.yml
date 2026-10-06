@@ -1,0 +1,40 @@
+# Локальная база для разработки. Поднимается одной командой, удаляется
+# бесследно вместе с данными — на боевую базу в ONREZA не влияет никак.
+#
+#   npm run db:up      запустить
+#   npm run db:down    остановить
+#   npm run db:reset   снести вместе с данными и поднять заново
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: nixdog-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nixdog
+      POSTGRES_PASSWORD: nixdog
+      POSTGRES_DB: nixdog
+      # Пароль для базы, которая слушает только этот компьютер и живёт
+      # в контейнере, ничего не защищает — зато исправно ломает подключение
+      # (ошибка 28P01). Пускаем без проверки пароля. На боевую базу в ONREZA
+      # это не влияет никак: там свои настройки, заданные на стороне платформы.
+      POSTGRES_HOST_AUTH_METHOD: trust
+    # Наружу отдаём нестандартный порт. И 5432, и 5433 на этой машине уже
+    # заняты чем-то, что само говорит на протоколе PostgreSQL и отклоняет
+    # подключения: Docker при этом ошибки не показывает, потому что занимает
+    # «все адреса», а обращения на 127.0.0.1 достаются тому, кто занял
+    # именно этот адрес.
+    # Порт берём ниже 49152: всё, что выше, Windows/Hyper-V может после
+    # перезагрузки зарезервировать под себя (netsh int ipv4 show
+    # excludedportrange protocol=tcp), и контейнер молча останется без порта.
+    ports:
+      - '15432:5432'
+    volumes:
+      - nixdog-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U nixdog -d nixdog']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  nixdog-db-data:

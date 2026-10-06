@@ -1,16 +1,18 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import QRCode from 'qrcode'
 import { prisma } from '@/lib/prisma'
 import { requireUser } from '@/lib/auth'
-import { fetchPayment, yookassaConfigured } from '@/lib/yookassa'
+import { syncOrderPayment } from '@/lib/payments'
 import { formatPrice } from '@/lib/money'
+import PaymentPanel from './PaymentPanel'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Заказ — NIXDOG STUDIO' }
 
-// Страница, на которую ЮKassa возвращает покупателя после оплаты.
-// Вебхук может прийти на секунду позже, поэтому здесь мы дополнительно
-// сами спрашиваем у ЮKassa статус — чтобы человек сразу видел правду.
+// Страница заказа: пока он не оплачен — здесь QR-код СБП или кнопка
+// оплаты картой на странице банка, после оплаты — подтверждение. Статус при каждом открытии сверяем с банком сами, не
+// дожидаясь вебхука, — чтобы человек сразу видел правду.
 export default async function OrderPage({ params }) {
   const user = await requireUser(`/order/${params.id}`)
 
@@ -22,18 +24,21 @@ export default async function OrderPage({ params }) {
   if (!order) notFound()
   if (order.userId !== user.id && user.role !== 'ADMIN') notFound()
 
-  if (order.status === 'PENDING' && order.paymentId && yookassaConfigured()) {
-    const payment = await fetchPayment(order.paymentId).catch(() => null)
-    if (payment?.status === 'succeeded') {
-      order = await prisma.order.update({
-        where: { id: order.id },
-        data: { status: 'PAID', paymentStatus: 'succeeded', paidAt: new Date() },
-        include: { items: true },
-      })
-    }
+  if (order.status === 'PENDING') {
+    order = await syncOrderPayment(order).catch(() => order)
   }
 
   const paid = order.status !== 'PENDING' && order.status !== 'CANCELED'
+  const awaitingPayment = order.status === 'PENDING' && order.paymentUrl && order.paymentExpiresAt
+
+  const qrSvg = awaitingPayment && order.paymentMethod !== 'card'
+    ? await QRCode.toString(order.paymentUrl, {
+        type: 'svg',
+        margin: 0,
+        errorCorrectionLevel: 'M',
+        color: { dark: '#1a1a1a', light: '#ffffff' },
+      })
+    : null
 
   return (
     <div className="page section">
@@ -47,9 +52,17 @@ export default async function OrderPage({ params }) {
           </div>
         ) : order.status === 'CANCELED' ? (
           <div className="form-error">
-            Оплата не прошла, заказ отменён. Товары вернулись в каталог — можно
+            Заказ отменён, деньги не списаны. Товары вернулись в каталог — можно
             оформить заказ заново.
           </div>
+        ) : awaitingPayment ? (
+          <PaymentPanel
+            method={order.paymentMethod}
+            orderId={order.id}
+            qrSvg={qrSvg}
+            paymentUrl={order.paymentUrl}
+            expiresAt={order.paymentExpiresAt.toISOString()}
+          />
         ) : (
           <div className="form-error">
             Платёж ещё не подтверждён. Если вы только что оплатили — обновите
@@ -71,7 +84,7 @@ export default async function OrderPage({ params }) {
             </div>
           ))}
           <div className="summary__total">
-            <span>Итого</span>
+            <span>{paid ? 'Оплачено' : 'К оплате'}</span>
             <span>{formatPrice(order.totalKopeks)}</span>
           </div>
           <p className="small muted" style={{ margin: 0 }}>

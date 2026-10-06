@@ -68,6 +68,7 @@ model Product {
 
   images   ProductImage[]
   variants ProductVariant[]
+  tags     Tag[]
 
   @@index([categoryId])
   @@map("products")
@@ -85,6 +86,10 @@ model ProductImage {
   // избыточно и тормозит загрузку.
   thumbUrl  String?
   thumbKey  String?
+  // Размер полноразмерной копии, px. По нему рамка на странице товара
+  // принимает пропорции снимка — фото не обрезается и не обрастает полями.
+  width     Int?
+  height    Int?
   alt       String  @default("")
   // К какому цвету относится фото (null — общее фото товара).
   colorSlug String?
@@ -92,6 +97,20 @@ model ProductImage {
 
   @@index([productId])
   @@map("product_images")
+}
+
+// Метки для фильтров каталога: сезон, назначение, коллекция.
+// Группы перечислены в lib/tags.js; сами метки заводятся в админке.
+model Tag {
+  id       String    @id @default(cuid())
+  group    String    // season / purpose / collection
+  slug     String
+  title    String
+  position Int       @default(0)
+  products Product[]
+
+  @@unique([group, slug])
+  @@map("tags")
 }
 
 // Вариант = конкретное сочетание цвета и размера со своим остатком.
@@ -128,11 +147,20 @@ model SizeGuideRow {
   @@map("size_guide_rows")
 }
 
+// Настройки витрины, которые меняет администратор: обложка главной и т.п.
+model SiteSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("site_settings")
+}
+
 // ───────────────────────────── Заказы ───────────────────────────────
 
 enum OrderStatus {
   PENDING   // создан, ждём оплату
-  PAID      // ЮKassa подтвердила оплату
+  PAID      // банк подтвердил оплату по СБП
   SHIPPED   // передан в доставку
   DONE      // вручён
   CANCELED  // отменён / оплата не прошла
@@ -159,10 +187,18 @@ model Order {
   postalCode    String @default("")
   comment       String @default("")
 
-  // Платёж в ЮKassa
-  paymentId     String? @unique
-  paymentStatus String?
-  paidAt        DateTime?
+  // Оплата: способ (sbp — QR СБП, card — карта на странице банка) и платёж
+  paymentMethod    String    @default("sbp")
+  paymentProvider  String?   // какой банк проводит платёж: mock, sber
+  paymentId        String?   @unique
+  paymentStatus    String?   // pending / succeeded / canceled — как ответил банк
+  // СБП — ссылка из QR-кода (https://qr.nspk.ru/...), на телефоне по ней же
+  // открывается приложение банка. Карта — адрес платёжной страницы банка.
+  paymentUrl       String?
+  // До какого момента можно оплатить. После — заказ отменяется,
+  // остатки возвращаются на склад.
+  paymentExpiresAt DateTime?
+  paidAt           DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

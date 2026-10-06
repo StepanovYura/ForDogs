@@ -51,42 +51,6 @@ export default async function ProductPage({ params }) {
         product={JSON.parse(JSON.stringify(product))}
         sizeGuide={sizeGuide}
       />
-
-      {/* Лукбук-блок из референса */}
-      <section className="section">
-        <div className="lookbook">
-          <div className="lookbook__tile">
-            {product.images[0] ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img src={product.images[0].url} alt="" />
-            ) : (
-              <div className="card__placeholder">Лукбук</div>
-            )}
-          </div>
-          <div className="lookbook__tile">
-            {product.images[1] ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img src={product.images[1].url} alt="" />
-            ) : (
-              <div className="card__placeholder">Лукбук</div>
-            )}
-          </div>
-          <div className="lookbook__text">
-            <h2>
-              Для больших
-              <br />
-              и маленьких
-              <br />
-              приключений
-            </h2>
-            <div className="caption">
-              Комфорт
-              <br />в каждой детали
-            </div>
-            <div className="caption">NIXDOG STUDIO</div>
-          </div>
-        </div>
-      </section>
     </div>
   )
 }

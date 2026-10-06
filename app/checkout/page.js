@@ -1,4 +1,5 @@
 import { requireUser } from '@/lib/auth'
+import { availablePaymentMethods } from '@/lib/payments'
 import CheckoutForm from './CheckoutForm'
 
 export const dynamic = 'force-dynamic'
@@ -11,7 +12,7 @@ export default async function CheckoutPage() {
   return (
     <div className="page section--tight" style={{ paddingBottom: 48 }}>
       <h1 className="h1">Оформление заказа</h1>
-      <CheckoutForm user={JSON.parse(JSON.stringify(user))} />
+      <CheckoutForm user={JSON.parse(JSON.stringify(user))} methods={availablePaymentMethods()} />
     </div>
   )
 }
