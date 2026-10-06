@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { formatPrice } from '@/lib/money'
 import { storageConfigured } from '@/lib/storage'
-import { yookassaConfigured } from '@/lib/yookassa'
+import { activeProviderLabel, paymentsConfigured } from '@/lib/payments'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,7 +19,11 @@ export default async function AdminHome() {
   ])
 
   const checks = [
-    { label: 'Оплата ЮKassa', ok: yookassaConfigured(), hint: 'YOOKASSA_SHOP_ID и YOOKASSA_SECRET_KEY' },
+    {
+      label: 'Оплата по СБП',
+      ok: paymentsConfigured(),
+      hint: `PAYMENT_PROVIDER и ключи банка · сейчас: ${activeProviderLabel()}`,
+    },
     { label: 'Хранилище картинок', ok: storageConfigured(), hint: 'S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY' },
     {
       label: 'Адрес сайта',
@@ -66,7 +70,7 @@ export default async function AdminHome() {
           </tbody>
         </table>
         <p className="small muted" style={{ marginBottom: 0 }}>
-          Переменные задаются в <code>.env.local</code> локально и в панели ONREZA
+          Переменные задаются в <code>.env</code> локально и в панели ONREZA
           на проде.
         </p>
       </div>

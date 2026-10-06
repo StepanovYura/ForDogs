@@ -16,3 +16,5 @@ __pycache__
 check-db.mjs
 probe-db.mjs
 check-storage.mjs
+.env.prod-backup
+.env.local.disabled

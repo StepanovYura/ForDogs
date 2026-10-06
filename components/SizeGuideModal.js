@@ -51,7 +51,6 @@ export default function SizeGuideModal({ rows }) {
                     <th>Длина спины, см</th>
                     <th>Обхват груди, см</th>
                     <th>Обхват шеи, см</th>
-                    <th>Примеры пород</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -61,7 +60,6 @@ export default function SizeGuideModal({ rows }) {
                       <td>{row.backLength}</td>
                       <td>{row.chest}</td>
                       <td>{row.neck}</td>
-                      <td className="muted">{row.breedsHint}</td>
                     </tr>
                   ))}
                 </tbody>

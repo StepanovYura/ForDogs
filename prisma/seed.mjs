@@ -114,7 +114,25 @@ const SIZE_GUIDE = [
   { size: 'XL', backLength: '43–50', chest: '63–74', neck: '41–46', breedsHint: 'кокер-спаниель, бордер-колли', position: 5 },
 ]
 
+// Стартовые метки для фильтров каталога. Группы — в lib/tags.js.
+const TAGS = [
+  { group: 'season', slug: 'vesna', title: 'Весна', position: 1 },
+  { group: 'season', slug: 'leto', title: 'Лето', position: 2 },
+  { group: 'season', slug: 'osen', title: 'Осень', position: 3 },
+  { group: 'season', slug: 'zima', title: 'Зима', position: 4 },
+  { group: 'purpose', slug: 'dlya-progulok', title: 'Для прогулок', position: 1 },
+  { group: 'purpose', slug: 'dlya-doma', title: 'Для дома', position: 2 },
+]
+
 async function main() {
+  for (const t of TAGS) {
+    await prisma.tag.upsert({
+      where: { group_slug: { group: t.group, slug: t.slug } },
+      update: { title: t.title, position: t.position },
+      create: t,
+    })
+  }
+
   for (const c of CATEGORIES) {
     await prisma.category.upsert({ where: { slug: c.slug }, update: c, create: c })
   }

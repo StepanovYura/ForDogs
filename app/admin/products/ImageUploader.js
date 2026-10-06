@@ -1,13 +1,18 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { compressImage } from './compressor'
+import { putToStorage } from '../upload'
+import { PHOTO_ADVICE, photoWarnings } from '@/lib/photoQuality'
 
-// Размеры, в которых храним фотографию.
-// full  — для карточки товара, больше 1600 px на экране всё равно не видно;
-// thumb — для сеток каталога и полоски превью, там картинка мелкая.
-const TARGETS = { full: 1600, thumb: 600 }
+// Размеры, в которых храним фотографию (по длинной стороне).
+// full  — для страницы товара: вертикальное фото 2:3 получается 1600×2400,
+//         этого хватает, чтобы на экранах высокой чёткости оно не мылилось;
+// thumb — для сеток каталога и полоски превью: 600×900 — карточка
+//         шириной ~300 px на таких экранах выглядит резко.
+// Фото меньше этих размеров не растягиваются — хранятся как есть.
+const TARGETS = { full: 2400, thumb: 900 }
 const QUALITY = 0.82
 
 // Сколько файлов обрабатываем одновременно. Три — компромисс: сеть
@@ -29,52 +34,10 @@ function formatKb(bytes) {
     : `${Math.round(bytes / 1024)} КБ`
 }
 
-// Загрузка в два шага: просим у сервера подписанную ссылку, затем
-// отправляем файл прямо в Yandex Object Storage, минуя наш сервер.
-async function putToStorage(blob, fileName) {
-  const signResponse = await fetch('/api/admin/upload-url', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ fileName, contentType: blob.type }),
-  })
-  const signed = await signResponse.json()
-  if (!signResponse.ok) throw new Error(signed.error || 'Не удалось получить ссылку')
-
-  // Никаких заголовков x-amz-*: в подписи участвует только host, и лишний
-  // служебный заголовок хранилище сочтёт подделкой запроса (403).
-  // Имена файлов уникальны, поэтому кэшировать их можно навсегда.
-  const put = await fetch(signed.uploadUrl, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': blob.type,
-      'Cache-Control': 'public, max-age=31536000, immutable',
-    },
-    body: blob,
-  })
-  if (!put.ok) {
-    const body = await put.text().catch(() => '')
-    const code = body.match(/<Code>([^<]+)<\/Code>/)?.[1]
-    const message = body.match(/<Message>([^<]+)<\/Message>/)?.[1]
-    throw new Error(
-      `Хранилище отклонило загрузку (${put.status}${code ? ', ' + code : ''})` +
-        (message ? `: ${message}` : '')
-    )
-  }
-  return signed
-}
-
-export default function ImageUploader({ productId, colors }) {
+export default function ImageUploader({ productId, colorSlug, colorName }) {
   const router = useRouter()
   const [items, setItems] = useState([])
   const [running, setRunning] = useState(false)
-  const [colorSlug, setColorSlug] = useState('')
-  const [alt, setAlt] = useState('')
-
-  // Настройки читаем в момент отправки файла, а не при постановке в очередь:
-  // за время загрузки сотни снимков их менять не будут, а ссылка на
-  // актуальное значение избавляет от устаревших замыканий.
-  const settings = useRef({ colorSlug: '', alt: '' })
-  settings.current = { colorSlug, alt }
 
   const update = useCallback((id, patch) => {
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)))
@@ -88,6 +51,7 @@ export default function ImageUploader({ productId, colors }) {
         try {
           update(item.id, { status: 'compressing', error: null })
           const blobs = await compressImage(item.file, TARGETS, QUALITY)
+          update(item.id, { warnings: photoWarnings(blobs.sizes?.source) })
 
           update(item.id, { status: 'uploading' })
           const base = item.file.name.replace(/\.[^.]+$/, '')
@@ -105,8 +69,9 @@ export default function ImageUploader({ productId, colors }) {
               key: full.key,
               thumbUrl: thumb.url,
               thumbKey: thumb.key,
-              alt: settings.current.alt,
-              colorSlug: settings.current.colorSlug || null,
+              colorSlug,
+              width: blobs.sizes?.full?.width,
+              height: blobs.sizes?.full?.height,
             }),
           })
           if (!attach.ok) {
@@ -192,29 +157,6 @@ export default function ImageUploader({ productId, colors }) {
 
   return (
     <div>
-      <div className="inline-form" style={{ marginBottom: 10 }}>
-        <select
-          className="select"
-          style={{ width: 'auto' }}
-          value={colorSlug}
-          onChange={(e) => setColorSlug(e.target.value)}
-        >
-          <option value="">Общее фото</option>
-          {colors.map((c) => (
-            <option key={c.slug} value={c.slug}>
-              Цвет: {c.name}
-            </option>
-          ))}
-        </select>
-        <input
-          className="input"
-          style={{ width: 200 }}
-          placeholder="Подпись (необязательно)"
-          value={alt}
-          onChange={(e) => setAlt(e.target.value)}
-        />
-      </div>
-
       <input
         type="file"
         accept="image/jpeg,image/png,image/webp,image/avif"
@@ -223,10 +165,10 @@ export default function ImageUploader({ productId, colors }) {
       />
 
       <p className="small muted" style={{ marginBottom: 0 }}>
-        Можно выбрать сразу несколько файлов. Каждый уменьшается до{' '}
-        {TARGETS.full} px и пережимается в WebP прямо здесь, в браузере;
-        отдельно сохраняется миниатюра {TARGETS.thumb} px для каталога.
-        Цвет и подпись берутся из полей выше в момент отправки.
+        Загружаем в «{colorName}». Можно выбрать сразу несколько файлов:
+        каждый уменьшается до {TARGETS.full} px и пережимается в WebP прямо
+        здесь, в браузере, плюс сохраняется миниатюра {TARGETS.thumb} px
+        для каталога. {PHOTO_ADVICE}
       </p>
 
       {items.length > 0 && (
@@ -277,6 +219,9 @@ export default function ImageUploader({ productId, colors }) {
                     </td>
                     <td className="small" style={{ color: 'var(--danger)' }}>
                       {item.error}
+                      {!item.error && item.warnings?.length > 0 && (
+                        <span style={{ color: '#8a6d1f' }}>Фото {item.warnings.join('; ')}</span>
+                      )}
                     </td>
                   </tr>
                 ))}

@@ -1,12 +1,15 @@
 import { prisma } from '@/lib/prisma'
 import { formatPrice } from '@/lib/money'
 import { STATUS_LABELS, STATUS_ORDER, statusBadgeClass } from '@/lib/orderStatus'
+import { expireStalePayments } from '@/lib/payments'
 import { setOrderStatusAction } from './actions'
 
 export const dynamic = 'force-dynamic'
 
 export default async function AdminOrdersPage({ searchParams }) {
   const filter = searchParams?.status
+  // Чтобы в списке не висели «ожидает оплаты» заказы с давно истёкшим QR.
+  await expireStalePayments().catch(() => {})
   const orders = await prisma.order.findMany({
     where: STATUS_ORDER.includes(filter) ? { status: filter } : {},
     include: { items: true, user: { select: { email: true } } },
@@ -70,7 +73,16 @@ export default async function AdminOrdersPage({ searchParams }) {
                   {formatPrice(order.totalKopeks)}
                 </div>
                 {order.paymentId && (
-                  <div className="small muted">Платёж: {order.paymentId}</div>
+                  <div className="small muted">
+                    {order.paymentMethod === 'card' ? 'Карта' : 'СБП'}
+                    {order.paymentProvider ? ` (${order.paymentProvider})` : ''}: {order.paymentId}
+                  </div>
+                )}
+                {order.status === 'CANCELED' && order.paymentStatus === 'succeeded' && (
+                  <div className="small" style={{ color: 'var(--danger)', maxWidth: 260 }}>
+                    Деньги пришли уже после отмены заказа: верните оплату через банк
+                    или восстановите заказ вручную.
+                  </div>
                 )}
               </div>
             </div>

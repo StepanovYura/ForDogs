@@ -140,6 +140,8 @@ textarea {
 
 /* ───────────────────────────── Шапка ───────────────────────────── */
 
+/* Компьютер: логотип | разделы словами | иконки.
+   Телефон и планшет (см. «Адаптив»): иконки | логотип | иконки. */
 .header {
   border-bottom: 1px solid var(--line);
   background: var(--bg);
@@ -149,14 +151,23 @@ textarea {
 }
 
 .header__inner {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-areas: 'logo nav actions';
   align-items: center;
-  justify-content: space-between;
   gap: 24px;
   height: 72px;
 }
 
+.header__left {
+  grid-area: left;
+  display: none;
+  align-items: center;
+  gap: 4px;
+}
+
 .logo {
+  grid-area: logo;
   line-height: 1.1;
 }
 
@@ -173,7 +184,9 @@ textarea {
 }
 
 .nav {
+  grid-area: nav;
   display: flex;
+  justify-content: center;
   gap: 32px;
   font-size: 12px;
   letter-spacing: 0.14em;
@@ -185,41 +198,147 @@ textarea {
 }
 
 .header__actions {
+  grid-area: actions;
   display: flex;
   align-items: center;
-  gap: 18px;
-  font-size: 12px;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.icon-btn {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.icon-btn:hover {
+  color: var(--accent);
+}
+
+.icon-badge {
+  position: absolute;
+  top: 4px;
+  right: 2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+}
+
+/* Поиск — строка под шапкой. */
+.search-bar {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 12px 24px rgba(26, 26, 26, 0.06);
+  color: var(--ink);
+}
+
+.search-bar__form {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 64px;
+}
+
+.search-bar__input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  font-size: 16px;
+  letter-spacing: 0.02em;
+}
+
+/* Выезжающее меню телефона и планшета. */
+.drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  color: var(--ink);
+}
+
+.drawer__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(26, 26, 26, 0.4);
+  animation: fade-in 0.2s ease;
+}
+
+.drawer__panel {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: min(360px, 86vw);
+  background: var(--bg);
+  overflow-y: auto;
+  padding: 12px 24px 32px;
+  animation: slide-in 0.25s ease;
+}
+
+.drawer__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 -10px 8px 0;
+}
+
+.drawer__group {
+  display: grid;
+  padding: 18px 0;
+  border-top: 1px solid var(--line);
+}
+
+.drawer__group .caption {
+  margin-bottom: 6px;
+}
+
+.drawer__group a,
+.drawer__link-btn {
+  padding: 10px 0;
+  font-size: 13px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
-.cart-link {
-  position: relative;
-  white-space: nowrap;
-}
-
-.cart-count {
-  display: inline-block;
-  min-width: 18px;
-  padding: 0 5px;
-  margin-left: 6px;
-  border-radius: 9px;
-  background: var(--accent);
-  color: var(--accent-ink);
-  font-size: 11px;
-  line-height: 18px;
-  text-align: center;
-  letter-spacing: 0;
-}
-
-.burger {
-  display: none;
-  background: none;
+.drawer__link-btn {
+  width: 100%;
   border: 0;
+  background: none;
+  color: var(--ink-soft);
+  text-align: left;
   cursor: pointer;
-  font-size: 12px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  font: inherit;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes slide-in {
+  from {
+    transform: translateX(-100%);
+  }
 }
 
 /* ───────────────────────────── Кнопки ──────────────────────────── */
@@ -351,6 +470,41 @@ textarea {
   margin: 0 auto;
 }
 
+/* Поле пароля с кнопкой «показать». */
+.password-field {
+  position: relative;
+}
+
+.password-field .input {
+  padding-right: 48px;
+}
+
+.password-field__toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 46px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-mute);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.password-field__toggle:hover,
+.password-field__toggle[aria-pressed='true'] {
+  color: var(--ink);
+}
+
+/* Встроенный «глазик» Edge дублировал бы наш. */
+.password-field input::-ms-reveal {
+  display: none;
+}
+
 /* ────────────────────── Хлебные крошки ─────────────────────────── */
 
 .crumbs {
@@ -375,12 +529,16 @@ textarea {
 }
 
 .card {
+  position: relative;
+}
+
+.card__link {
   display: block;
 }
 
 .card__media {
   position: relative;
-  aspect-ratio: 3 / 4;
+  aspect-ratio: 2 / 3;
   background: var(--bg-tile);
   overflow: hidden;
   margin-bottom: 14px;
@@ -393,7 +551,7 @@ textarea {
   transition: transform 0.4s ease;
 }
 
-.card:hover .card__media img {
+.card__link:hover .card__media img {
   transform: scale(1.03);
 }
 
@@ -454,20 +612,50 @@ textarea {
 
 .product {
   display: grid;
-  grid-template-columns: 88px minmax(0, 1fr) 360px;
-  gap: 24px 36px;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 24px 48px;
   align-items: start;
 }
 
+/* Превью слева и большое фото справа. Высоту ряда задаёт большое фото;
+   лента превью растягивается ровно на неё и прокручивается внутри, так что
+   карточка не становится выше от количества снимков. */
+.product__gallery {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 24px;
+}
+
 .product__thumbs {
+  position: relative;
+}
+
+.product__thumbs-scroll {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+  overscroll-behavior: contain;
+}
+
+.product__thumbs-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.product__thumbs-scroll::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 2px;
 }
 
 .thumb {
   position: relative;
-  aspect-ratio: 3 / 4;
+  flex: none;
+  aspect-ratio: 2 / 3;
   background: var(--bg-tile);
   border: 1px solid transparent;
   padding: 0;
@@ -485,9 +673,14 @@ textarea {
   border-color: var(--ink);
 }
 
+/* Пропорции рамки задаются в разметке (--ratio) — по размеру снимка.
+   Высота не больше экрана: вертикальное фото на всю ширину колонки было
+   бы выше окна, поэтому рамка сужается, сохраняя пропорции фото. */
 .product__main {
   position: relative;
-  aspect-ratio: 4 / 5;
+  aspect-ratio: var(--ratio, 2 / 3);
+  width: min(100%, calc((100vh - 160px) * var(--ratio, 0.667)));
+  width: min(100%, calc((100svh - 160px) * var(--ratio, 0.667)));
   background: var(--bg-tile);
   overflow: hidden;
 }
@@ -495,7 +688,144 @@ textarea {
 .product__main img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+}
+
+/* Листаемая лента фото — только на телефоне. */
+.product__slider {
+  display: none;
+}
+
+.slider {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+
+.slider::-webkit-scrollbar {
+  display: none;
+}
+
+.slider__slide {
+  position: relative;
+  flex: 0 0 100%;
+  aspect-ratio: var(--slide-ratio, 3 / 4);
+  scroll-snap-align: start;
+  background: var(--bg-tile);
+}
+
+.slider__slide img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.slider__dots {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 0 0;
+}
+
+.slider__dots button {
+  width: 6px;
+  height: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--line);
+  cursor: pointer;
+}
+
+.slider__dots button[aria-current='true'] {
+  background: var(--ink);
+}
+
+.slider__counter {
+  padding-top: 10px;
+  text-align: center;
+}
+
+.product__title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.product__description {
+  margin-bottom: 22px;
+}
+
+/* Сердечко «в избранное». */
+.fav-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
+  transition: color 0.2s, transform 0.2s;
+}
+
+.fav-btn:hover,
+.fav-btn[aria-pressed='true'] {
+  color: var(--accent);
+}
+
+.fav-btn:active {
+  transform: scale(0.9);
+}
+
+.fav-btn--inline {
+  flex: none;
+  margin: -6px -8px 0 0;
+}
+
+.fav-btn--card {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.fav-btn--card svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* «Подробнее»: текст сворачивается только на телефоне (см. «Адаптив»). */
+.readmore__toggle {
+  display: none;
+  margin-top: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+.readmore__body > :first-child {
+  margin-top: 0;
+}
+
+.readmore__body > :last-child {
+  margin-bottom: 0;
 }
 
 .product__price {
@@ -606,92 +936,41 @@ textarea {
   white-space: pre-line;
 }
 
-/* ───────────────── Галерея деталей и лукбук ────────────────────── */
+/* ─────────────────────── Обложка главной ───────────────────────── */
 
-.detail-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  margin-top: 56px;
-}
-
-.detail-tile {
-  aspect-ratio: 1 / 1;
-  background: var(--bg-tile);
+/* Компьютер: фото от шапки до низа экрана. Телефон и планшет: на весь
+   экран, шапка лежит поверх (см. «Адаптив»). */
+.cover {
+  display: block;
   position: relative;
-  overflow: hidden;
-}
-
-.detail-tile img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.detail-caption {
-  text-align: center;
-  margin-top: 10px;
-}
-
-.lookbook {
-  display: grid;
-  grid-template-columns: 1fr 1fr 0.8fr;
-  gap: 16px;
-  align-items: stretch;
-  margin-top: 16px;
-}
-
-.lookbook__tile {
-  position: relative;
-  aspect-ratio: 4 / 5;
+  height: calc(100vh - 73px);
+  height: calc(100svh - 73px);
+  min-height: 420px;
   background: var(--bg-tile);
   overflow: hidden;
 }
 
-.lookbook__tile img {
+.cover picture,
+.cover img {
+  display: block;
   width: 100%;
   height: 100%;
+}
+
+.cover img {
   object-fit: cover;
 }
 
-.lookbook__text {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 18px;
-  padding-left: 12px;
-}
-
-.lookbook__text h2 {
-  font-size: 26px;
-  line-height: 1.2;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  font-weight: 400;
-  margin: 0;
-}
-
-/* ──────────────────────────── Баннер ───────────────────────────── */
-
-.hero {
+.cover__placeholder {
+  position: absolute;
+  inset: 0;
   display: grid;
-  grid-template-columns: 1.1fr 1fr;
-  gap: 48px;
-  align-items: center;
-  padding: 56px 0;
+  place-items: center;
 }
 
-.hero__media {
-  position: relative;
-  aspect-ratio: 4 / 3;
-  background: var(--bg-tile);
-  overflow: hidden;
-}
-
-.hero__media img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+/* На главной под обложкой сразу подвал, без отступа. */
+.layout main:has(.cover) + .footer {
+  margin-top: 0;
 }
 
 /* ──────────────────────────── Таблицы ──────────────────────────── */
@@ -743,7 +1022,7 @@ textarea {
 
 .cart-row__media {
   position: relative;
-  aspect-ratio: 3 / 4;
+  aspect-ratio: 2 / 3;
   background: var(--bg-tile);
   overflow: hidden;
 }
@@ -840,6 +1119,74 @@ textarea {
 }
 
 /* ───────────────────────────── Админка ─────────────────────────── */
+
+.admin-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.admin-head .h1 {
+  margin: 0;
+}
+
+.admin-head__user {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* Список товаров в админке: строка — ссылка на страницу товара. */
+.admin-product-row {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto 20px;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--line);
+  transition: background 0.15s;
+}
+
+.admin-product-row:first-child {
+  border-top: 0;
+}
+
+.admin-product-row:hover {
+  background: var(--bg-soft);
+}
+
+.admin-product-row__thumb {
+  width: 56px;
+  aspect-ratio: 2 / 3;
+  background: var(--bg-tile);
+  overflow: hidden;
+}
+
+.admin-product-row__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.admin-product-row__price {
+  white-space: nowrap;
+}
+
+.admin-product-row__go {
+  color: var(--ink-mute);
+}
+
+.admin-product-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
 
 .admin-tabs {
   display: flex;
@@ -997,6 +1344,245 @@ textarea {
   color: #fff;
 }
 
+/* ──────────────────────────── Каталог ──────────────────────────── */
+
+.catalog {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 40px;
+  align-items: start;
+}
+
+/* В каталоге колонки заданы жёстко: 18 товаров на странице делятся и на
+   три колонки, и на две — последний ряд всегда полный. */
+.grid-products--catalog {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.toolbar__search {
+  flex: 1 1 260px;
+  max-width: 380px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  color: var(--ink-mute);
+}
+
+.toolbar__search:focus-within {
+  border-color: var(--ink);
+}
+
+.toolbar__search input {
+  flex: 1;
+  min-width: 0;
+  height: 42px;
+  border: 0;
+  outline: none;
+  background: none;
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.toolbar__right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.toolbar__sort {
+  height: 42px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  background: #fff;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+
+.toolbar__filters-btn {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 14px;
+  border: 1px solid var(--ink);
+  background: #fff;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  background: var(--bg-soft);
+  font-size: 12px;
+}
+
+.chip:hover {
+  border-color: var(--ink);
+}
+
+.chip--reset {
+  background: none;
+  border-color: transparent;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  color: var(--ink-soft);
+}
+
+/* Панель фильтров: на компьютере — колонка слева. Набор фильтров всегда
+   один и тот же, так что и высота у панели постоянная; если она не влезает
+   в экран, прокручивается внутри, а кнопка «Показать» прижата к низу. */
+.filters-panel {
+  position: sticky;
+  top: 96px;
+}
+
+.filters-panel__body {
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+  padding-right: 6px;
+}
+
+.filters-panel__backdrop,
+.filters-panel__head {
+  display: none;
+}
+
+.facet {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 0;
+  padding: 16px 0 18px;
+  min-width: 0;
+}
+
+.facet:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.facet__title {
+  padding: 0;
+  margin-bottom: 12px;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.facet__price {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+}
+
+.facet__price .input {
+  padding: 9px 10px;
+  min-width: 0;
+}
+
+.facet__list {
+  display: grid;
+  gap: 10px;
+}
+
+.facet__option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.facet__option input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--ink);
+}
+
+.facet__swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+}
+
+.facet__sizes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.facet__size input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.facet__size span {
+  display: inline-block;
+  min-width: 42px;
+  padding: 8px 6px;
+  border: 1px solid var(--line);
+  text-align: center;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.facet__size input:checked + span {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: #fff;
+}
+
+.facet__size input:focus-visible + span {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.filters-panel__actions {
+  position: sticky;
+  bottom: 0;
+  display: grid;
+  gap: 14px;
+  justify-items: center;
+  padding: 14px 0 4px;
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+}
+
+.filters-panel__actions .btn {
+  max-width: none;
+}
+
 /* ────────────────────── Постраничная навигация ─────────────────── */
 
 .pager {
@@ -1039,18 +1625,307 @@ textarea {
   color: var(--ink-mute);
 }
 
+/* ─────────────────────── Выбор способа оплаты ────────────────────── */
+
+.pay-methods {
+  border: 0;
+  margin: 0 0 18px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.pay-methods legend {
+  padding: 0;
+  margin-bottom: 10px;
+}
+
+.pay-method {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.pay-method[data-active='true'] {
+  border-color: var(--ink);
+}
+
+.pay-method input {
+  margin: 3px 0 0;
+  accent-color: var(--ink);
+}
+
+.pay-method > span {
+  display: grid;
+  gap: 2px;
+}
+
+/* ─────────────────────────── Оплата СБП ────────────────────────── */
+
+.sbp {
+  text-align: center;
+}
+
+.sbp__head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  margin-bottom: 22px;
+}
+
+.sbp__logo {
+  flex: none;
+  min-width: 44px;
+  padding: 0 6px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--ink);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
+
+.sbp__qr {
+  width: 232px;
+  max-width: 100%;
+  margin: 0 auto 18px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
+.sbp__qr svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.sbp__hint {
+  max-width: 340px;
+  margin: 0 auto 18px;
+}
+
+/* На телефоне сканировать собственный экран нечем — там главная кнопка,
+   ведущая в приложение банка, а QR остаётся запасным вариантом. */
+.sbp__mobile {
+  display: none;
+}
+
+.sbp__waiting {
+  margin-bottom: 6px;
+}
+
+.sbp__dot {
+  display: inline-block;
+  vertical-align: middle;
+  margin: -2px 8px 0 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: sbp-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes sbp-pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.sbp__cancel {
+  display: block;
+  margin: 14px auto 0;
+  padding: 4px;
+  background: none;
+  border: 0;
+  color: var(--ink-mute);
+  font: inherit;
+  font-size: 12px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.sbp__cancel:hover:not(:disabled) {
+  color: var(--danger);
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .sbp__mobile {
+    display: block;
+  }
+
+  .sbp__desktop {
+    display: none;
+  }
+
+  .sbp__qr {
+    width: 168px;
+  }
+
+  .sbp .btn {
+    margin-bottom: 10px;
+  }
+}
+
 /* ─────────────────────────── Адаптив ───────────────────────────── */
 
 @media (max-width: 1024px) {
-  /* ───── Планшет ───── */
+  /* ───── Планшет и телефон ───── */
 
-  .product {
-    grid-template-columns: 72px minmax(0, 1fr);
-    gap: 20px 24px;
+  /* Шапка из иконок: каталог и поиск слева, логотип по центру,
+     избранное, аккаунт и корзина справа. */
+  .header__inner {
+    grid-template-columns: 1fr auto 1fr;
+    grid-template-areas: 'left logo actions';
+    gap: 8px;
+    height: 64px;
+    position: relative;
   }
 
-  .product__side {
-    grid-column: 1 / -1;
+  .header__left {
+    display: flex;
+    margin-left: -10px;
+  }
+
+  .header__actions {
+    margin-right: -10px;
+  }
+
+  .logo {
+    text-align: center;
+  }
+
+  .nav,
+  .icon-btn--desktop {
+    display: none;
+  }
+
+  /* Главная: шапка прозрачная и лежит поверх обложки. */
+  .header--hero {
+    position: absolute;
+    left: 0;
+    right: 0;
+    background: transparent;
+    border-bottom-color: transparent;
+    color: #fff;
+  }
+
+  .header--hero .logo__sub {
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  .header--hero .icon-btn:hover {
+    color: #fff;
+  }
+
+  .header--hero::before {
+    /* Лёгкое затемнение сверху, чтобы белые иконки читались на светлом фото. */
+    content: '';
+    position: absolute;
+    inset: 0 0 -40px;
+    background: linear-gradient(rgba(0, 0, 0, 0.28), transparent);
+    pointer-events: none;
+  }
+
+  .header--hero .header__inner {
+    position: relative;
+  }
+
+  .cover {
+    height: 100vh;
+    height: 100svh;
+  }
+
+  .product {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+
+  .product__gallery {
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .catalog {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .toolbar__filters-btn {
+    display: inline-flex;
+  }
+
+  /* Фильтры — выезжающая справа панель. */
+  .filters-panel {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .filters-panel.is-open {
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  .filters-panel__backdrop {
+    display: block;
+    position: absolute;
+    inset: 0;
+    background: rgba(26, 26, 26, 0.4);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .filters-panel.is-open .filters-panel__backdrop {
+    opacity: 1;
+  }
+
+  .filters-panel__body {
+    max-height: none;
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(380px, 88vw);
+    overflow-y: auto;
+    background: var(--bg);
+    padding: 12px 24px 24px;
+    transform: translateX(100%);
+    transition: transform 0.25s ease;
+  }
+
+  .filters-panel.is-open .filters-panel__body {
+    transform: none;
+  }
+
+  .filters-panel__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0 -10px 12px 0;
+  }
+
+  .filters-panel__actions {
+    position: sticky;
+    bottom: -24px;
+    margin: 0 -24px -24px;
+    padding: 16px 24px 24px;
+    background: var(--bg);
+    border-top: 1px solid var(--line);
   }
 
   .cart-layout {
@@ -1062,65 +1937,9 @@ textarea {
     position: static;
   }
 
-  .lookbook {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .lookbook__text {
-    grid-column: 1 / -1;
-    padding: 0;
-  }
-
   .footer__grid {
     grid-template-columns: 1fr 1fr;
     gap: 28px;
-  }
-
-  .nav {
-    gap: 22px;
-  }
-
-  .header__actions {
-    gap: 14px;
-  }
-}
-
-@media (max-width: 860px) {
-  /* Меню в строку уже не помещается — прячем под кнопку «Меню». */
-  .nav {
-    display: none;
-  }
-
-  .nav--open {
-    display: flex;
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background: #fff;
-    border-bottom: 1px solid var(--line);
-    flex-direction: column;
-    gap: 0;
-    padding: 4px 20px 16px;
-    box-shadow: 0 12px 24px rgba(26, 26, 26, 0.08);
-  }
-
-  .nav--open a {
-    padding: 14px 0;
-    border-bottom: 1px solid var(--line);
-    font-size: 13px;
-  }
-
-  .nav--open a:last-child {
-    border-bottom: 0;
-  }
-
-  .burger {
-    display: block;
-  }
-
-  .header__inner {
-    position: relative;
   }
 }
 
@@ -1131,34 +1950,34 @@ textarea {
     --gap: 16px;
   }
 
+  /* Боковые поля: текст и кнопки не должны прилипать к краю экрана. */
   .page {
-    padding: 0 16px;
+    padding: 0 20px;
   }
 
   .section {
-    padding-top: 40px;
-    padding-bottom: 40px;
+    padding-top: 36px;
+    padding-bottom: 36px;
   }
 
   .section--tight {
-    padding-top: 20px;
-    padding-bottom: 20px;
+    padding-top: 16px;
+    padding-bottom: 24px;
   }
 
   .h1 {
-    font-size: 24px;
+    font-size: 22px;
+    letter-spacing: 0.05em;
     margin-bottom: 12px;
   }
 
   .h2 {
-    font-size: 18px;
-    margin-bottom: 18px;
+    font-size: 17px;
+    margin-bottom: 16px;
   }
 
-  /* Шапка: ниже и компактнее, чтобы не съедать первый экран. */
   .header__inner {
-    height: 60px;
-    gap: 12px;
+    height: 56px;
   }
 
   .logo__name {
@@ -1171,38 +1990,74 @@ textarea {
     letter-spacing: 0.3em;
   }
 
-  .header__actions {
-    gap: 12px;
-    font-size: 11px;
-    letter-spacing: 0.06em;
+  .icon-btn {
+    width: 38px;
+    height: 38px;
   }
 
-  .nav--open {
-    padding: 4px 16px 16px;
+  .icon-btn svg {
+    width: 21px;
+    height: 21px;
   }
 
-  /* Две колонки товаров: по одной карточке на экран — это бесконечная
-     прокрутка ради шести позиций. */
-  .grid-products {
+  /* Свёрнутый текст с кнопкой «Подробнее». */
+  /* Обрезаем по высоте, а не по строкам: так сворачивается и текст из
+     нескольких абзацев с заголовками. Низ мягко растворяется. */
+  .readmore:not([data-open='true']) .readmore__body {
+    max-height: calc(var(--lines, 4) * 1.6em);
+    overflow: hidden;
+  }
+
+  .readmore[data-clamped='true'] .readmore__body {
+    -webkit-mask-image: linear-gradient(#000 55%, transparent);
+    mask-image: linear-gradient(#000 55%, transparent);
+  }
+
+  .footer__about {
+    display: none;
+  }
+
+  .readmore__toggle {
+    display: inline-block;
+  }
+
+  .grid-products,
+  .grid-products--catalog {
     grid-template-columns: 1fr 1fr;
-    gap: 26px 12px;
+    gap: 28px 12px;
+  }
+
+  .card__media {
+    margin-bottom: 10px;
   }
 
   .card__title {
-    font-size: 12px;
+    font-size: 11px;
     letter-spacing: 0.06em;
+    line-height: 1.35;
   }
 
   .card__price {
     font-size: 13px;
   }
 
-  /* Фильтры — лентой с прокруткой: в столбик они занимают пол-экрана. */
+  .card__colors {
+    margin-top: 8px;
+  }
+
+  .fav-btn--card {
+    top: 4px;
+    right: 4px;
+    width: 32px;
+    height: 32px;
+  }
+
+  /* Категории — лентой с прокруткой: в столбик они занимают пол-экрана. */
   .filters {
     flex-wrap: nowrap;
     overflow-x: auto;
-    margin: 0 -16px 24px;
-    padding: 0 16px 4px;
+    margin: 0 -20px 18px;
+    padding: 0 20px 4px;
     scrollbar-width: none;
   }
 
@@ -1216,50 +2071,62 @@ textarea {
     font-size: 10px;
   }
 
-  .crumbs {
-    padding: 14px 0;
-    font-size: 11px;
+  .toolbar {
+    gap: 10px;
+    margin-bottom: 16px;
   }
 
-  /* Карточка товара: фото, затем полоска превью, затем описание. */
-  .product {
-    grid-template-columns: 1fr;
-    gap: 16px;
+  .toolbar__search {
+    flex: 1 1 100%;
+    max-width: none;
   }
 
-  .product__main {
-    order: 1;
-    aspect-ratio: 3 / 4;
-    margin: 0 -16px;
+  .toolbar__right {
+    width: 100%;
+    gap: 10px;
   }
 
-  .product__thumbs {
-    order: 2;
-    flex-direction: row;
-    overflow-x: auto;
-    gap: 8px;
-    padding-bottom: 4px;
-    scrollbar-width: none;
-  }
-
-  .product__thumbs::-webkit-scrollbar {
+  .toolbar__count {
     display: none;
   }
 
-  .product__thumbs .thumb {
-    flex: 0 0 64px;
+  .toolbar__sort,
+  .toolbar__filters-btn {
+    flex: 1;
+    justify-content: center;
   }
 
-  .product__side {
-    order: 3;
-  }
-
-  .product__price {
-    font-size: 20px;
+  .chips {
     margin-bottom: 18px;
   }
 
-  /* Кружки цветов и размеры — под палец, а не под курсор. */
+  .crumbs {
+    padding: 12px 0;
+    font-size: 11px;
+  }
+
+  /* Карточка товара: фото листаются пальцем, точки под ними. */
+  .product__gallery {
+    display: none;
+  }
+
+  .product__slider {
+    display: block;
+  }
+
+  .product {
+    gap: 20px;
+  }
+
+  .product__price {
+    font-size: 19px;
+    margin-bottom: 14px;
+  }
+
+  .option-group {
+    margin-bottom: 18px;
+  }
+
   .swatch {
     width: 32px;
     height: 32px;
@@ -1274,38 +2141,10 @@ textarea {
     padding: 15px 22px;
   }
 
-  .hero {
-    grid-template-columns: 1fr;
-    gap: 24px;
-    padding: 28px 0 40px;
+  .accordion {
+    margin-top: 24px;
   }
 
-  .hero__media {
-    order: -1;
-    margin: 0 -16px;
-    aspect-ratio: 4 / 3;
-  }
-
-  .detail-grid {
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-top: 36px;
-  }
-
-  .detail-caption {
-    font-size: 10px;
-  }
-
-  .lookbook {
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-  }
-
-  .lookbook__text h2 {
-    font-size: 20px;
-  }
-
-  /* Корзина: картинка уже, кнопки не налезают друг на друга. */
   .cart-row {
     grid-template-columns: 68px minmax(0, 1fr);
     gap: 14px;
@@ -1330,23 +2169,46 @@ textarea {
     padding: 18px 16px;
   }
 
+  .modal-backdrop {
+    padding: 12px;
+  }
+
   .modal {
     padding: 20px 16px;
   }
 
   .footer {
     margin-top: 48px;
-    padding: 36px 0 32px;
+    padding: 32px 0 28px;
   }
 
   .footer__grid {
-    grid-template-columns: 1fr;
-    gap: 26px;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px 16px;
+  }
+
+  /* Первый столбец подвала (логотип и описание) — на всю ширину. */
+  .footer__grid > :first-child {
+    grid-column: 1 / -1;
   }
 
   .footer__bottom {
     flex-direction: column;
     gap: 6px;
+    margin-top: 28px;
+  }
+
+  .admin-product-row {
+    grid-template-columns: 48px minmax(0, 1fr) auto;
+    gap: 12px;
+  }
+
+  .admin-product-row__thumb {
+    width: 48px;
+  }
+
+  .admin-product-row__go {
+    display: none;
   }
 
   .admin-tabs {
@@ -1367,16 +2229,25 @@ textarea {
 
 @media (max-width: 380px) {
   /* Совсем узкие экраны: убираем лишние миллиметры, ничего не пряча. */
-  .header__actions {
-    gap: 10px;
-    font-size: 10px;
+  .page {
+    padding: 0 16px;
   }
 
-  .grid-products {
-    gap: 22px 10px;
+  .icon-btn {
+    width: 34px;
+    height: 34px;
+  }
+
+  .logo__name {
+    font-size: 14px;
+  }
+
+  .grid-products,
+  .grid-products--catalog {
+    gap: 24px 10px;
   }
 
   .h1 {
-    font-size: 21px;
+    font-size: 20px;
   }
 }

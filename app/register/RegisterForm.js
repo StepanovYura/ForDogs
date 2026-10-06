@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useFormState, useFormStatus } from 'react-dom'
+import PasswordInput from '@/components/PasswordInput'
 import { registerAction } from '../login/actions'
 
 function Submit() {
@@ -34,15 +35,7 @@ export default function RegisterForm({ next }) {
 
       <div className="field">
         <label htmlFor="password">Пароль</label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          className="input"
-          required
-          minLength={8}
-          autoComplete="new-password"
-        />
+        <PasswordInput id="password" name="password" required minLength={8} autoComplete="new-password" />
         <p className="small muted" style={{ margin: '6px 0 0' }}>
           Не короче 8 символов.
         </p>

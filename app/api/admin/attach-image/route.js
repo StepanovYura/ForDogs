@@ -13,7 +13,7 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Нет доступа' }, { status: 403 })
   }
 
-  const { productId, url, key, thumbUrl, thumbKey, alt, colorSlug } =
+  const { productId, url, key, thumbUrl, thumbKey, alt, colorSlug, width, height } =
     await request.json().catch(() => ({}))
   if (!productId || !url) {
     return NextResponse.json({ error: 'Некорректный запрос' }, { status: 400 })
@@ -29,11 +29,13 @@ export async function POST(request) {
       thumbKey: thumbKey || null,
       alt: alt || '',
       colorSlug: colorSlug || null,
+      width: Number.isInteger(width) && width > 0 ? width : null,
+      height: Number.isInteger(height) && height > 0 ? height : null,
       position: count,
     },
   })
 
-  revalidatePath('/admin/products')
+  revalidatePath('/admin/products', 'layout')
   revalidatePath('/catalog')
   return NextResponse.json({ image })
 }

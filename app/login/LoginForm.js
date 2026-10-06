@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useFormState, useFormStatus } from 'react-dom'
+import PasswordInput from '@/components/PasswordInput'
 import { loginAction } from './actions'
 
 function Submit() {
@@ -37,14 +38,7 @@ export default function LoginForm({ next }) {
 
       <div className="field">
         <label htmlFor="password">Пароль</label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          className="input"
-          required
-          autoComplete="current-password"
-        />
+        <PasswordInput id="password" name="password" required autoComplete="current-password" />
       </div>
 
       <Submit />

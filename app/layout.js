@@ -2,6 +2,7 @@ import './globals.css'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import { CartProvider } from '@/context/CartContext'
+import { FavoritesProvider } from '@/context/FavoritesContext'
 import { getCurrentUser } from '@/lib/auth'
 import { getCategories } from '@/lib/categories'
 
@@ -41,11 +42,13 @@ export default async function RootLayout({ children }) {
       </head>
       <body>
         <CartProvider>
-          <div className="layout">
-            <Header user={user} />
-            <main>{children}</main>
-            <Footer categories={categories} />
-          </div>
+          <FavoritesProvider>
+            <div className="layout">
+              <Header user={user} categories={categories} />
+              <main>{children}</main>
+              <Footer categories={categories} />
+            </div>
+          </FavoritesProvider>
         </CartProvider>
       </body>
     </html>

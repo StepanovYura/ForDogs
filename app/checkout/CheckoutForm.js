@@ -5,10 +5,26 @@ import Link from 'next/link'
 import { useCart } from '@/context/CartContext'
 import { formatPrice } from '@/lib/money'
 
-export default function CheckoutForm({ user }) {
+// Способы оплаты. Данные карты на нашем сайте не вводятся никогда —
+// только на защищённой платёжной странице банка.
+const METHODS = {
+  sbp: {
+    title: 'СБП',
+    hint: 'QR-код или приложение вашего банка. Без комиссии и без ввода карты.',
+    button: 'Оплатить по СБП',
+  },
+  card: {
+    title: 'Банковская карта',
+    hint: 'Visa, Mastercard, МИР. Данные карты вводятся на защищённой странице банка.',
+    button: 'Перейти к оплате картой',
+  },
+}
+
+export default function CheckoutForm({ user, methods = ['sbp'] }) {
   const { items, totalKopeks, ready, clear } = useCart()
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [method, setMethod] = useState(methods[0] || 'sbp')
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -24,6 +40,7 @@ export default function CheckoutForm({ user }) {
       address: form.get('address'),
       postalCode: form.get('postalCode') || '',
       comment: form.get('comment') || '',
+      paymentMethod: method,
       items: items.map((i) => ({ variantId: i.variantId, quantity: i.quantity })),
     }
 
@@ -41,9 +58,10 @@ export default function CheckoutForm({ user }) {
         return
       }
 
-      // Заказ создан — корзину чистим и уходим на страницу оплаты ЮKassa.
+      // Заказ создан — корзину чистим и уходим платить: на страницу заказа
+      // с QR-кодом СБП или на платёжную страницу банка.
       clear()
-      window.location.href = data.confirmationUrl
+      window.location.href = data.redirectUrl
     } catch {
       setError('Сеть недоступна. Попробуйте ещё раз.')
       setBusy(false)
@@ -148,13 +166,41 @@ export default function CheckoutForm({ user }) {
           <span>К оплате</span>
           <span>{formatPrice(totalKopeks)}</span>
         </div>
-        <button type="submit" className="btn btn--block" disabled={busy}>
-          {busy ? 'Создаём платёж…' : 'Перейти к оплате'}
+        {methods.length > 1 && (
+          <fieldset className="pay-methods">
+            <legend className="caption">Способ оплаты</legend>
+            {methods.map((key) => (
+              <label key={key} className="pay-method" data-active={method === key}>
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value={key}
+                  checked={method === key}
+                  onChange={() => setMethod(key)}
+                />
+                <span>
+                  <strong>{METHODS[key].title}</strong>
+                  <span className="small muted">{METHODS[key].hint}</span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
+        )}
+
+        <button type="submit" className="btn btn--block" disabled={busy || methods.length === 0}>
+          {busy ? 'Создаём платёж…' : METHODS[method]?.button || 'Оплатить'}
         </button>
-        <p className="small muted" style={{ marginBottom: 0, marginTop: 14 }}>
-          Оплата картой на защищённой странице ЮKassa. Данные карты на наш
-          сайт не передаются.
-        </p>
+        {methods.length === 0 ? (
+          <p className="small" style={{ color: 'var(--danger)', marginBottom: 0, marginTop: 14 }}>
+            Оплата временно недоступна.
+          </p>
+        ) : (
+          methods.length === 1 && (
+            <p className="small muted" style={{ marginBottom: 0, marginTop: 14 }}>
+              {METHODS[method].hint}
+            </p>
+          )
+        )}
       </aside>
     </form>
   )
