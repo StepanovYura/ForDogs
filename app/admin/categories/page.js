@@ -1,9 +1,10 @@
 import { prisma } from '@/lib/prisma'
 import DeleteCategoryButton from './DeleteCategoryButton'
+import PositionSelect from '@/components/admin/PositionSelect'
 import {
   createCategoryAction,
-  moveCategoryAction,
   renameCategoryAction,
+  setCategoryPositionAction,
 } from './actions'
 
 export const dynamic = 'force-dynamic'
@@ -43,27 +44,13 @@ export default async function AdminCategoriesPage() {
                       товаров: {category._count.products}
                     </td>
                     <td>
-                      <div className="inline-form" style={{ gap: 6, flexWrap: 'nowrap' }}>
-                        <form action={moveCategoryAction}>
-                          <input type="hidden" name="id" value={category.id} />
-                          <input type="hidden" name="direction" value="up" />
-                          <button type="submit" className="btn btn--ghost btn--sm" disabled={index === 0} title="Выше">
-                            ↑
-                          </button>
-                        </form>
-                        <form action={moveCategoryAction}>
-                          <input type="hidden" name="id" value={category.id} />
-                          <input type="hidden" name="direction" value="down" />
-                          <button
-                            type="submit"
-                            className="btn btn--ghost btn--sm"
-                            disabled={index === categories.length - 1}
-                            title="Ниже"
-                          >
-                            ↓
-                          </button>
-                        </form>
-                      </div>
+                      <PositionSelect
+                        action={setCategoryPositionAction}
+                        fields={{ id: category.id }}
+                        value={index + 1}
+                        count={categories.length}
+                        label="Место категории в списке"
+                      />
                     </td>
                     <td>
                       <DeleteCategoryButton id={category.id} title={category.title} count={category._count.products} />

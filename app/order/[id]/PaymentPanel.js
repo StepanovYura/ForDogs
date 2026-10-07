@@ -20,7 +20,9 @@ function formatLeft(ms) {
 // Статус опрашиваем сами: вернувшись из банка, человек сразу видит
 // результат, не обновляя страницу.
 export default function PaymentPanel({ method = 'sbp', orderId, qrSvg, paymentUrl, expiresAt }) {
-  const card = method === 'card'
+  // Карта и «Долями» оплачиваются на странице банка, СБП — по QR-коду здесь.
+  const card = method === 'card' || method === 'dolyame'
+  const dolyame = method === 'dolyame'
   const router = useRouter()
   const deadline = new Date(expiresAt).getTime()
   // Пока страница не ожила в браузере — null: время на сервере и в браузере
@@ -74,10 +76,12 @@ export default function PaymentPanel({ method = 'sbp', orderId, qrSvg, paymentUr
     <div className="panel sbp">
       <div className="sbp__head">
         <span className="sbp__logo" aria-hidden="true">
-          {card ? 'КАРТА' : 'СБП'}
+          {dolyame ? 'ДОЛЯМИ' : card ? 'КАРТА' : 'СБП'}
         </span>
         <div>
-          <strong>{card ? 'Оплата банковской картой' : 'Оплата через СБП'}</strong>
+          <strong>
+            {dolyame ? 'Оплата долями' : card ? 'Оплата банковской картой' : 'Оплата через СБП'}
+          </strong>
           <div className="small muted">
             {expired
               ? card
@@ -93,12 +97,13 @@ export default function PaymentPanel({ method = 'sbp', orderId, qrSvg, paymentUr
       ) : card ? (
         <>
           <a href={paymentUrl} className="btn btn--block">
-            Перейти к оплате картой
+            {dolyame ? 'Перейти к оформлению «Долями»' : 'Перейти к оплате картой'}
           </a>
           <p className="sbp__hint small muted" style={{ marginTop: 14 }}>
-            Данные карты вводятся на защищённой странице банка — на наш сайт
-            они не попадают. Если вы уже оплатили, подождите: банк подтвердит
-            платёж, и страница обновится сама.
+            {dolyame
+              ? 'Оплата частями оформляется на защищённой странице Т-Банка: 4 платежа по 25% раз в две недели, без переплат.'
+              : 'Данные карты вводятся на защищённой странице банка — на наш сайт они не попадают.'}{' '}
+            Если вы уже оплатили, подождите: банк подтвердит платёж, и страница обновится сама.
           </p>
           <div className="sbp__waiting small muted">
             <span className="sbp__dot" aria-hidden="true" />

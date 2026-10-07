@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useCart } from '@/context/CartContext'
 import { useFavorites } from '@/context/FavoritesContext'
 import { logoutAction } from '@/app/login/actions'
+import SocialLinks from './SocialLinks'
 import { BagIcon, CloseIcon, HeartIcon, MenuIcon, SearchIcon, UserIcon } from './Icons'
 
 // Шапка.
@@ -14,7 +15,7 @@ import { BagIcon, CloseIcon, HeartIcon, MenuIcon, SearchIcon, UserIcon } from '.
 //   Телефон и планшет: только иконки — каталог и поиск слева, логотип по
 //   центру, избранное, аккаунт и корзина справа. На главной шапка
 //   прозрачная и лежит поверх обложки.
-export default function Header({ user, categories = [] }) {
+export default function Header({ user, categories = [], socials = {} }) {
   const { count } = useCart()
   const favorites = useFavorites()
   const pathname = usePathname()
@@ -185,6 +186,8 @@ export default function Header({ user, categories = [] }) {
               <Link prefetch={false} href="/about">О бренде</Link>
               <Link prefetch={false} href="/contacts">Контакты</Link>
             </div>
+
+            <SocialLinks socials={socials} className="socials drawer__socials" />
           </div>
         </div>
       )}

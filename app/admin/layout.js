@@ -24,6 +24,7 @@ export default async function AdminLayout({ children }) {
         <Link href="/admin/categories">Категории</Link>
         <Link href="/admin/tags">Фильтры</Link>
         <Link href="/admin/home">Главная</Link>
+        <Link href="/admin/settings">Реквизиты и соцсети</Link>
         <Link href="/">На сайт</Link>
       </nav>
       {children}

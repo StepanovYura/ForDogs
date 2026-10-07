@@ -52,7 +52,9 @@ export default function MockBankPage({ params }) {
         </div>
 
         <div className="panel" style={{ textAlign: 'center' }}>
-          <div className="caption">{payment.method === 'card' ? 'Оплата картой' : 'Оплата по QR · СБП'}</div>
+          <div className="caption">
+            {{ card: 'Оплата картой', dolyame: 'Оплата долями' }[payment.method] || 'Оплата по QR · СБП'}
+          </div>
           <div style={{ fontSize: 34, margin: '14px 0 6px' }}>{formatPrice(payment.amountKopeks)}</div>
           <div className="small muted">Получатель: NIXDOG STUDIO</div>
           <div className="small muted">Заказ №{payment.orderNumber}</div>
@@ -67,6 +69,12 @@ export default function MockBankPage({ params }) {
           </>
         ) : (
           <form action={resolve} style={{ display: 'grid', gap: 10 }}>
+            {payment.method === 'dolyame' && (
+              <p className="small muted" style={{ margin: '0 0 6px', textAlign: 'center' }}>
+                Здесь банк покажет график из 4 платежей и попросит карту для
+                первого. В эмуляторе — просто выберите исход.
+              </p>
+            )}
             {payment.method === 'card' && (
               <p className="small muted" style={{ margin: '0 0 6px', textAlign: 'center' }}>
                 Здесь настоящий банк попросит номер карты, срок, CVC и код

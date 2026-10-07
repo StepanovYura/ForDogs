@@ -126,6 +126,9 @@ model ProductVariant {
 
   sku   String? @unique
   stock Int     @default(0)
+  // Цена этого размера, в копейках. Пусто — действует цена товара.
+  // Задаётся в админке для размера сразу во всех цветах.
+  priceKopeks Int?
 
   orderItems OrderItem[]
 
@@ -199,6 +202,10 @@ model Order {
   // остатки возвращаются на склад.
   paymentExpiresAt DateTime?
   paidAt           DateTime?
+
+  // Трек-номер посылки: администратор вписывает при отправке, он уходит
+  // покупателю в письме «Заказ передан в доставку».
+  trackingNumber   String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

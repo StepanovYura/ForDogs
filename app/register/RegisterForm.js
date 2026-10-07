@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useFormState, useFormStatus } from 'react-dom'
 import PasswordInput from '@/components/PasswordInput'
+import ConsentCheckbox from '@/components/ConsentCheckbox'
 import { registerAction } from '../login/actions'
 
 function Submit() {
@@ -40,6 +41,8 @@ export default function RegisterForm({ next }) {
           Не короче 8 символов.
         </p>
       </div>
+
+      <ConsentCheckbox withOffer={false} />
 
       <Submit />
 

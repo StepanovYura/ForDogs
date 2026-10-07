@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { formatPrice } from '@/lib/money'
 import { storageConfigured } from '@/lib/storage'
 import { activeProviderLabel, paymentsConfigured } from '@/lib/payments'
+import { mailConfigured } from '@/lib/mail'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,9 +21,19 @@ export default async function AdminHome() {
 
   const checks = [
     {
-      label: 'Оплата по СБП',
+      label: 'Оплата (карта и СБП)',
       ok: paymentsConfigured(),
       hint: `PAYMENT_PROVIDER и ключи банка · сейчас: ${activeProviderLabel()}`,
+    },
+    {
+      label: 'Чеки (онлайн-касса)',
+      ok: process.env.TBANK_RECEIPTS === '1' || process.env.SBER_FISCALIZATION === '1',
+      hint: 'TBANK_RECEIPTS=1 — после подключения кассы к терминалу Т-Банка',
+    },
+    {
+      label: 'Письма покупателям',
+      ok: mailConfigured(),
+      hint: 'SMTP_HOST, SMTP_USER, SMTP_PASSWORD, MAIL_FROM; ADMIN_EMAIL — для уведомлений о заказах',
     },
     { label: 'Хранилище картинок', ok: storageConfigured(), hint: 'S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY' },
     {

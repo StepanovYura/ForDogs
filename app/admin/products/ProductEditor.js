@@ -2,18 +2,31 @@
 
 import ImageUploader from './ImageUploader'
 import { photoWarnings } from '@/lib/photoQuality'
+import ConfirmButton from '@/components/admin/ConfirmButton'
+import PositionSelect from '@/components/admin/PositionSelect'
+import { SIZE_SUGGESTIONS, compareSizes } from '@/lib/sizes'
 import {
+  addColorAction,
+  addSizeAction,
+  createFirstVariantAction,
   deleteImageAction,
-  moveImageAction,
-  setImageColorAction,
   deleteProductAction,
-  deleteVariantAction,
-  setVariantStockAction,
+  removeColorAction,
+  removeSizeAction,
+  saveStockAction,
+  setImageColorAction,
+  setImagePositionAction,
+  setSizePriceAction,
+  updateColorAction,
   updateProductAction,
-  upsertVariantAction,
 } from './actions'
 
-const SIZES = ['XS', 'S', 'M', 'L', 'XL']
+// Формы «добавить размер / цвет» после отправки очищаются, чтобы можно
+// было сразу вводить следующий.
+const afterSubmitReset = (action) => async (formData) => {
+  await action(formData)
+  for (const form of document.querySelectorAll('form[data-reset]')) form.reset()
+}
 
 // Редактор товара — отдельная страница /admin/products/<id>: основные поля,
 // метки, варианты, фотографии.
@@ -24,6 +37,11 @@ export default function ProductEditor({ product, categories, tagGroups = [] }) {
       colors.push({ slug: v.colorSlug, name: v.colorName, hex: v.colorHex })
     }
   }
+  const sizes = [...new Set(product.variants.map((v) => v.size))].sort(compareSizes)
+  // Цена размера одна на все цвета — берём с любого варианта этого размера.
+  const sizePrice = Object.fromEntries(product.variants.map((v) => [v.size, v.priceKopeks]))
+  const variantOf = (colorSlug, size) =>
+    product.variants.find((v) => v.colorSlug === colorSlug && v.size === size)
 
   return (
     <div>
@@ -125,84 +143,178 @@ export default function ProductEditor({ product, categories, tagGroups = [] }) {
         </div>
       </form>
 
-      {/* ─── Цвета и размеры ─── */}
+      {/* ─── Цвета, размеры, цены и остатки ─── */}
       <h3 className="h3" style={{ marginTop: 32 }}>
-        Цвета и размеры
+        Цвета, размеры и остатки
       </h3>
 
-      <div className="table-wrap">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Цвет</th>
-              <th>Размер</th>
-              <th>Остаток</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {product.variants.map((variant) => (
-              <tr key={variant.id}>
-                <td>
-                  <span
-                    style={{
-                      display: 'inline-block',
-                      width: 12,
-                      height: 12,
-                      borderRadius: '50%',
-                      background: variant.colorHex,
-                      border: '1px solid #ddd',
-                      marginRight: 8,
-                      verticalAlign: 'middle',
-                    }}
-                  />
-                  {variant.colorName}
-                </td>
-                <td>{variant.size}</td>
-                <td>
-                  <form action={setVariantStockAction} className="inline-form">
-                    <input type="hidden" name="variantId" value={variant.id} />
-                    <input
-                      name="stock"
-                      className="input"
-                      style={{ width: 80 }}
-                      defaultValue={variant.stock}
-                      inputMode="numeric"
-                    />
-                    <button type="submit" className="btn btn--ghost btn--sm">
-                      ОК
-                    </button>
-                  </form>
-                </td>
-                <td>
-                  <form action={deleteVariantAction}>
-                    <input type="hidden" name="variantId" value={variant.id} />
-                    <button type="submit" className="link-underline">
-                      Удалить
-                    </button>
-                  </form>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {colors.length === 0 ? (
+        <form action={createFirstVariantAction} className="inline-form">
+          <input type="hidden" name="productId" value={product.id} />
+          <span className="small muted">Первый цвет и размер:</span>
+          <input name="colorName" className="input" style={{ width: 150 }} placeholder="Бордовый" required />
+          <input name="colorHex" type="color" className="input" style={{ width: 56, padding: 4 }} defaultValue="#7b1e2b" />
+          <input name="size" className="input" style={{ width: 90 }} placeholder="M" list="size-suggestions" required />
+          <button type="submit" className="btn btn--sm">
+            Добавить
+          </button>
+        </form>
+      ) : (
+        <>
+          {/* Размеры и их цены */}
+          <div className="variant-block">
+            <div className="caption">Размеры и цены</div>
+            <div className="table-wrap">
+              <table className="table">
+                <tbody>
+                  {sizes.map((size) => (
+                    <tr key={size}>
+                      <td style={{ width: 80 }}>
+                        <strong>{size}</strong>
+                      </td>
+                      <td>
+                        <form action={setSizePriceAction} className="inline-form">
+                          <input type="hidden" name="productId" value={product.id} />
+                          <input type="hidden" name="size" value={size} />
+                          <input
+                            name="price"
+                            className="input"
+                            style={{ width: 120 }}
+                            inputMode="decimal"
+                            defaultValue={sizePrice[size] != null ? sizePrice[size] / 100 : ''}
+                            placeholder={`${product.priceKopeks / 100}`}
+                            aria-label={`Цена размера ${size}, ₽`}
+                          />
+                          <span className="small muted">₽</span>
+                          <button type="submit" className="btn btn--ghost btn--sm">
+                            ОК
+                          </button>
+                          <span className="small muted">
+                            {sizePrice[size] != null ? 'своя цена' : 'как у товара'}
+                          </span>
+                        </form>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <ConfirmButton
+                          action={removeSizeAction}
+                          fields={{ productId: product.id, size }}
+                          confirm={`Убрать размер ${size} во всех цветах?`}
+                        >
+                          Убрать
+                        </ConfirmButton>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <form action={afterSubmitReset(addSizeAction)} data-reset className="inline-form" style={{ marginTop: 10 }}>
+              <input type="hidden" name="productId" value={product.id} />
+              <input name="size" className="input" style={{ width: 110 }} placeholder="XXL" list="size-suggestions" required />
+              <button type="submit" className="btn btn--sm">
+                Добавить размер
+              </button>
+              <span className="small muted">Пустая цена — действует цена товара.</span>
+            </form>
+          </div>
 
-      <form action={upsertVariantAction} className="inline-form" style={{ marginTop: 14 }}>
-        <input type="hidden" name="productId" value={product.id} />
-        <input name="colorName" className="input" style={{ width: 140 }} placeholder="Бордовый" required />
-        <input name="colorSlug" className="input" style={{ width: 120 }} placeholder="burgundy" required />
-        <input name="colorHex" type="color" className="input" style={{ width: 56, padding: 4 }} defaultValue="#7b1e2b" />
-        <select name="size" className="select" style={{ width: 90 }}>
-          {SIZES.map((s) => (
-            <option key={s}>{s}</option>
-          ))}
-        </select>
-        <input name="stock" className="input" style={{ width: 80 }} placeholder="Остаток" defaultValue={10} />
-        <button type="submit" className="btn btn--sm">
-          Добавить вариант
-        </button>
-      </form>
+          {/* Цвета */}
+          <div className="variant-block">
+            <div className="caption">Цвета</div>
+            {colors.map((color) => (
+              <div className="inline-form" key={color.slug} style={{ marginBottom: 8 }}>
+                <form action={updateColorAction} className="inline-form">
+                  <input type="hidden" name="productId" value={product.id} />
+                  <input type="hidden" name="colorSlug" value={color.slug} />
+                  <input
+                    name="colorHex"
+                    type="color"
+                    className="input"
+                    style={{ width: 48, padding: 4 }}
+                    defaultValue={color.hex}
+                    aria-label="Оттенок"
+                  />
+                  <input name="colorName" className="input" style={{ width: 170 }} defaultValue={color.name} />
+                  <button type="submit" className="btn btn--ghost btn--sm">
+                    Сохранить
+                  </button>
+                </form>
+                <ConfirmButton
+                  action={removeColorAction}
+                  fields={{ productId: product.id, colorSlug: color.slug }}
+                  confirm={`Убрать цвет «${color.name}» со всеми размерами? Его фото перейдут в «Фото без цвета».`}
+                >
+                  Убрать
+                </ConfirmButton>
+              </div>
+            ))}
+            <form action={afterSubmitReset(addColorAction)} data-reset className="inline-form" style={{ marginTop: 10 }}>
+              <input type="hidden" name="productId" value={product.id} />
+              <input name="colorHex" type="color" className="input" style={{ width: 48, padding: 4 }} defaultValue="#1c1c1c" />
+              <input name="colorName" className="input" style={{ width: 170 }} placeholder="Чёрный" required />
+              <button type="submit" className="btn btn--sm">
+                Добавить цвет
+              </button>
+            </form>
+          </div>
+
+          {/* Остатки: цвет × размер */}
+          <form action={saveStockAction} className="variant-block">
+            <input type="hidden" name="productId" value={product.id} />
+            <div className="caption">Остатки на складе, шт.</div>
+            <div className="table-wrap">
+              <table className="table stock-table">
+                <thead>
+                  <tr>
+                    <th>Цвет</th>
+                    {sizes.map((size) => (
+                      <th key={size}>{size}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {colors.map((color) => (
+                    <tr key={color.slug}>
+                      <td>
+                        <span className="stock-table__swatch" style={{ background: color.hex }} />
+                        {color.name}
+                      </td>
+                      {sizes.map((size) => {
+                        const variant = variantOf(color.slug, size)
+                        return (
+                          <td key={size}>
+                            {variant ? (
+                              <input
+                                name={`stock_${variant.id}`}
+                                className="input"
+                                style={{ width: 64 }}
+                                inputMode="numeric"
+                                defaultValue={variant.stock}
+                                aria-label={`${color.name}, ${size}`}
+                              />
+                            ) : (
+                              <span className="muted">—</span>
+                            )}
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <button type="submit" className="btn btn--sm" style={{ marginTop: 10 }}>
+              Сохранить остатки
+            </button>
+          </form>
+        </>
+      )}
+
+      <datalist id="size-suggestions">
+        {SIZE_SUGGESTIONS.filter((s) => !sizes.includes(s)).map((s) => (
+          <option key={s} value={s} />
+        ))}
+      </datalist>
 
       {/* ─── Фотографии ─── */}
       <h3 className="h3" style={{ marginTop: 32 }}>
@@ -315,33 +427,14 @@ export default function ProductEditor({ product, categories, tagGroups = [] }) {
                     )}
 
                     <div className="inline-form" style={{ gap: 6 }}>
-                      {!group.legacy && (
-                        <>
-                          <form action={moveImageAction}>
-                            <input type="hidden" name="imageId" value={image.id} />
-                            <input type="hidden" name="direction" value="up" />
-                            <button
-                              type="submit"
-                              className="btn btn--ghost btn--sm"
-                              disabled={index === 0}
-                              title="Раньше в этой группе"
-                            >
-                              ↑
-                            </button>
-                          </form>
-                          <form action={moveImageAction}>
-                            <input type="hidden" name="imageId" value={image.id} />
-                            <input type="hidden" name="direction" value="down" />
-                            <button
-                              type="submit"
-                              className="btn btn--ghost btn--sm"
-                              disabled={index === groupImages.length - 1}
-                              title="Позже в этой группе"
-                            >
-                              ↓
-                            </button>
-                          </form>
-                        </>
+                      {!group.legacy && groupImages.length > 1 && (
+                        <PositionSelect
+                          action={setImagePositionAction}
+                          fields={{ imageId: image.id }}
+                          value={index + 1}
+                          count={groupImages.length}
+                          label="Место фото в ленте цвета"
+                        />
                       )}
                       <form action={deleteImageAction}>
                         <input type="hidden" name="imageId" value={image.id} />

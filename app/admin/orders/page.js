@@ -3,6 +3,7 @@ import { formatPrice } from '@/lib/money'
 import { STATUS_LABELS, STATUS_ORDER, statusBadgeClass } from '@/lib/orderStatus'
 import { expireStalePayments } from '@/lib/payments'
 import { setOrderStatusAction } from './actions'
+import { METHOD_LABELS } from '@/lib/paymentMethods'
 
 export const dynamic = 'force-dynamic'
 
@@ -74,7 +75,7 @@ export default async function AdminOrdersPage({ searchParams }) {
                 </div>
                 {order.paymentId && (
                   <div className="small muted">
-                    {order.paymentMethod === 'card' ? 'Карта' : 'СБП'}
+                    {METHOD_LABELS[order.paymentMethod] || 'СБП'}
                     {order.paymentProvider ? ` (${order.paymentProvider})` : ''}: {order.paymentId}
                   </div>
                 )}
@@ -121,11 +122,19 @@ export default async function AdminOrdersPage({ searchParams }) {
                   </option>
                 ))}
               </select>
+              <input
+                name="trackingNumber"
+                className="input"
+                style={{ width: 180 }}
+                placeholder="Трек-номер"
+                defaultValue={order.trackingNumber || ''}
+                aria-label="Трек-номер посылки"
+              />
               <button type="submit" className="btn btn--sm">
                 Сохранить
               </button>
               <span className="small muted">
-                Отмена возвращает товары на склад.
+                Покупателю уходит письмо о новом статусе. Отмена возвращает товары на склад.
               </span>
             </form>
           </div>

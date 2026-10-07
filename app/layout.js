@@ -5,6 +5,8 @@ import { CartProvider } from '@/context/CartContext'
 import { FavoritesProvider } from '@/context/FavoritesContext'
 import { getCurrentUser } from '@/lib/auth'
 import { getCategories } from '@/lib/categories'
+import { getSiteInfo } from '@/lib/settings'
+import { dolyameEnabled } from '@/lib/payments'
 
 export const metadata = {
   title: 'NIXDOG STUDIO — одежда для собак',
@@ -29,7 +31,11 @@ function getStorageOrigin() {
 export default async function RootLayout({ children }) {
   const storageOrigin = getStorageOrigin()
 
-  const [user, categories] = await Promise.all([getCurrentUser(), getCategories()])
+  const [user, categories, siteInfo] = await Promise.all([
+    getCurrentUser(),
+    getCategories(),
+    getSiteInfo().catch(() => ({ requisites: {}, socials: {} })),
+  ])
 
   return (
     <html lang="ru">
@@ -44,9 +50,9 @@ export default async function RootLayout({ children }) {
         <CartProvider>
           <FavoritesProvider>
             <div className="layout">
-              <Header user={user} categories={categories} />
+              <Header user={user} categories={categories} socials={siteInfo.socials} />
               <main>{children}</main>
-              <Footer categories={categories} />
+              <Footer categories={categories} siteInfo={siteInfo} dolyame={dolyameEnabled()} />
             </div>
           </FavoritesProvider>
         </CartProvider>

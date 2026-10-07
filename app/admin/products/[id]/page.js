@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getCategories } from '@/lib/categories'
 import { TAG_GROUPS } from '@/lib/tags'
 import { formatPrice } from '@/lib/money'
+import { priceRange } from '@/lib/sizes'
 import ProductEditor from '../ProductEditor'
 
 export const dynamic = 'force-dynamic'
@@ -47,7 +48,11 @@ export default async function AdminProductPage({ params, searchParams }) {
             )}
           </h2>
           <div className="small muted">
-            {formatPrice(product.priceKopeks)} · вариантов: {product.variants.length} · на складе:{' '}
+            {(() => {
+              const { min, max } = priceRange(product)
+              return min === max ? formatPrice(min) : `${formatPrice(min)} – ${formatPrice(max)}`
+            })()}{' '}
+            · вариантов: {product.variants.length} · на складе:{' '}
             {stock} шт. · фото: {product.images.length}
           </div>
         </div>

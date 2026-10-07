@@ -45,6 +45,7 @@ export async function registerAction(_prevState, formData) {
     email: formData.get('email'),
     password: formData.get('password'),
     name: formData.get('name') || '',
+    consent: formData.get('consent'),
   })
   if (!parsed.success) {
     return { error: parsed.error.issues[0].message }

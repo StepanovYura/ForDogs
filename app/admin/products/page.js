@@ -3,12 +3,17 @@ import { prisma } from '@/lib/prisma'
 import { getCategories } from '@/lib/categories'
 import NewProductForm from './NewProductForm'
 import { formatPrice } from '@/lib/money'
+import { priceRange } from '@/lib/sizes'
 
 export const dynamic = 'force-dynamic'
 
 // Товары в админке тоже листаем: при двух сотнях позиций грузить их все
 // вместе с вариантами и фотографиями — это тысячи строк на один запрос.
 const PER_PAGE = 20
+
+function formatRange({ min, max }) {
+  return min === max ? formatPrice(min) : `${formatPrice(min)} – ${formatPrice(max)}`
+}
 
 export default async function AdminProductsPage({ searchParams }) {
   const query = (searchParams?.q || '').trim()
@@ -33,7 +38,7 @@ export default async function AdminProductsPage({ searchParams }) {
       include: {
         category: { select: { title: true } },
         images: { orderBy: { position: 'asc' }, take: 1, select: { url: true, thumbUrl: true } },
-        variants: { select: { stock: true } },
+        variants: { select: { stock: true, priceKopeks: true } },
         _count: { select: { images: true } },
       },
       orderBy: [{ position: 'asc' }, { createdAt: 'desc' }],
@@ -108,7 +113,7 @@ export default async function AdminProductsPage({ searchParams }) {
                     · на складе: {stock} шт. · фото: {product._count.images}
                   </div>
                 </div>
-                <div className="admin-product-row__price">{formatPrice(product.priceKopeks)}</div>
+                <div className="admin-product-row__price">{formatRange(priceRange(product))}</div>
                 <span className="admin-product-row__go" aria-hidden="true">
                   →
                 </span>
