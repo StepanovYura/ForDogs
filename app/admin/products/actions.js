@@ -92,44 +92,166 @@ export async function deleteProductAction(formData) {
   redirect('/admin/products')
 }
 
-export async function upsertVariantAction(formData) {
+// ─────────────────── Цвета, размеры, цены, остатки ───────────────────
+// Варианты товара — все сочетания «цвет × размер». Админка управляет ими
+// целиком: добавить размер — он появляется во всех цветах, убрать цвет —
+// пропадают все его размеры.
+
+function refreshProduct() {
+  revalidatePath('/admin/products', 'layout')
+  revalidatePath('/catalog')
+  revalidatePath('/product/[slug]', 'page')
+}
+
+function cleanSize(value) {
+  return String(value || '').trim().toUpperCase().replace(/\s+/g, ' ').slice(0, 12)
+}
+
+async function productColorsAndSizes(productId) {
+  const variants = await prisma.productVariant.findMany({ where: { productId } })
+  const colors = []
+  for (const v of variants) {
+    if (!colors.some((c) => c.slug === v.colorSlug)) {
+      colors.push({ slug: v.colorSlug, name: v.colorName, hex: v.colorHex })
+    }
+  }
+  const sizes = [...new Set(variants.map((v) => v.size))]
+  // Цена размера — общая для всех цветов, берём с любого его варианта.
+  const sizePrice = Object.fromEntries(variants.map((v) => [v.size, v.priceKopeks]))
+  return { variants, colors, sizes, sizePrice }
+}
+
+// Первый вариант товара: цвет и размер сразу.
+export async function createFirstVariantAction(formData) {
   await requireAdmin()
-
   const productId = String(formData.get('productId'))
-  const colorSlug = slugify(translit(formData.get('colorSlug') || ''))
-  const colorName = String(formData.get('colorName') || '').trim()
+  const colorName = String(formData.get('colorName') || '').trim().slice(0, 40)
   const colorHex = String(formData.get('colorHex') || '#000000').trim()
-  const size = String(formData.get('size') || '').trim().toUpperCase()
-  const stock = Math.max(0, Number(formData.get('stock') || 0) || 0)
-
-  if (!colorSlug || !colorName || !size) return
+  const size = cleanSize(formData.get('size'))
+  const colorSlug = slugify(translit(colorName))
+  if (!colorName || !colorSlug || !size) return
 
   await prisma.productVariant.upsert({
     where: { productId_colorSlug_size: { productId, colorSlug, size } },
-    update: { colorName, colorHex, stock },
-    create: { productId, colorSlug, colorName, colorHex, size, stock },
+    update: {},
+    create: { productId, colorSlug, colorName, colorHex, size, stock: 0 },
   })
-
-  revalidatePath('/admin/products', 'layout')
-  revalidatePath('/catalog')
+  refreshProduct()
 }
 
-export async function setVariantStockAction(formData) {
+export async function addSizeAction(formData) {
   await requireAdmin()
+  const productId = String(formData.get('productId'))
+  const size = cleanSize(formData.get('size'))
+  if (!size) return
 
-  const id = String(formData.get('variantId'))
-  const stock = Math.max(0, Number(formData.get('stock') || 0) || 0)
-  await prisma.productVariant.update({ where: { id }, data: { stock } })
-
-  revalidatePath('/admin/products', 'layout')
+  const { colors } = await productColorsAndSizes(productId)
+  await prisma.$transaction(
+    colors.map((c) =>
+      prisma.productVariant.upsert({
+        where: { productId_colorSlug_size: { productId, colorSlug: c.slug, size } },
+        update: {},
+        create: { productId, colorSlug: c.slug, colorName: c.name, colorHex: c.hex, size, stock: 0 },
+      })
+    )
+  )
+  refreshProduct()
 }
 
-export async function deleteVariantAction(formData) {
+// Убрать размер — во всех цветах. Уже оформленные заказы не страдают:
+// в них сохранён снимок товара, а ссылка на вариант просто обнулится.
+export async function removeSizeAction(formData) {
   await requireAdmin()
+  const productId = String(formData.get('productId'))
+  const size = String(formData.get('size'))
+  await prisma.productVariant.deleteMany({ where: { productId, size } })
+  refreshProduct()
+}
 
-  await prisma.productVariant.delete({ where: { id: String(formData.get('variantId')) } })
-  revalidatePath('/admin/products', 'layout')
-  revalidatePath('/catalog')
+// Цена размера: пустое поле — как у товара.
+export async function setSizePriceAction(formData) {
+  await requireAdmin()
+  const productId = String(formData.get('productId'))
+  const size = String(formData.get('size'))
+  const raw = String(formData.get('price') || '').trim()
+  const priceKopeks = raw ? rublesToKopeks(raw) : null
+  if (priceKopeks === 0) return
+
+  await prisma.productVariant.updateMany({ where: { productId, size }, data: { priceKopeks } })
+  refreshProduct()
+}
+
+export async function addColorAction(formData) {
+  await requireAdmin()
+  const productId = String(formData.get('productId'))
+  const colorName = String(formData.get('colorName') || '').trim().slice(0, 40)
+  const colorHex = String(formData.get('colorHex') || '#000000').trim()
+  const colorSlug = slugify(translit(colorName))
+  if (!colorName || !colorSlug) return
+
+  const { sizes, sizePrice } = await productColorsAndSizes(productId)
+  await prisma.$transaction(
+    sizes.map((size) =>
+      prisma.productVariant.upsert({
+        where: { productId_colorSlug_size: { productId, colorSlug, size } },
+        update: { colorName, colorHex },
+        create: {
+          productId,
+          colorSlug,
+          colorName,
+          colorHex,
+          size,
+          stock: 0,
+          priceKopeks: sizePrice[size] ?? null,
+        },
+      })
+    )
+  )
+  refreshProduct()
+}
+
+export async function updateColorAction(formData) {
+  await requireAdmin()
+  const productId = String(formData.get('productId'))
+  const colorSlug = String(formData.get('colorSlug'))
+  const colorName = String(formData.get('colorName') || '').trim().slice(0, 40)
+  const colorHex = String(formData.get('colorHex') || '#000000').trim()
+  if (!colorName) return
+  // Адрес цвета (colorSlug) не меняем: к нему привязаны фотографии.
+  await prisma.productVariant.updateMany({
+    where: { productId, colorSlug },
+    data: { colorName, colorHex },
+  })
+  refreshProduct()
+}
+
+// Убрать цвет со всеми его размерами. Фото этого цвета не удаляем, а
+// переводим в «Фото без цвета» — там их можно перенести или удалить.
+export async function removeColorAction(formData) {
+  await requireAdmin()
+  const productId = String(formData.get('productId'))
+  const colorSlug = String(formData.get('colorSlug'))
+  await prisma.$transaction([
+    prisma.productVariant.deleteMany({ where: { productId, colorSlug } }),
+    prisma.productImage.updateMany({ where: { productId, colorSlug }, data: { colorSlug: null } }),
+  ])
+  refreshProduct()
+}
+
+// Таблица остатков сохраняется целиком: поля называются stock_<id варианта>.
+export async function saveStockAction(formData) {
+  await requireAdmin()
+  const productId = String(formData.get('productId'))
+  const updates = []
+  for (const [key, value] of formData.entries()) {
+    if (!key.startsWith('stock_')) continue
+    const stock = Math.max(0, Math.floor(Number(value) || 0))
+    updates.push(
+      prisma.productVariant.updateMany({ where: { id: key.slice(6), productId }, data: { stock } })
+    )
+  }
+  await prisma.$transaction(updates)
+  refreshProduct()
 }
 
 export async function deleteImageAction(formData) {
@@ -148,35 +270,33 @@ export async function deleteImageAction(formData) {
 }
 
 // Порядок фотографий = порядок показа в галерее, а первая становится
-// обложкой в каталоге. Меняем местами позиции с соседом.
-export async function moveImageAction(formData) {
+// обложкой в каталоге. Админ выбирает номер места внутри ленты цвета,
+// остальные фото этого цвета сдвигаются.
+export async function setImagePositionAction(formData) {
   await requireAdmin()
 
   const id = String(formData.get('imageId'))
-  const direction = String(formData.get('direction')) === 'up' ? -1 : 1
-
   const image = await prisma.productImage.findUnique({ where: { id } })
   if (!image) return
 
-  // Соседи — фото того же цвета: в админке и на сайте они идут своей лентой.
   const siblings = await prisma.productImage.findMany({
     where: { productId: image.productId, colorSlug: image.colorSlug },
     orderBy: { position: 'asc' },
   })
+  const target = Math.min(Math.max(Number(formData.get('position')) - 1 || 0, 0), siblings.length - 1)
+  const reordered = siblings.filter((i) => i.id !== id)
+  reordered.splice(target, 0, image)
 
-  const index = siblings.findIndex((i) => i.id === id)
-  const target = siblings[index + direction]
-  if (!target) return
-
-  // Позиции могли разъехаться (дубли, пропуски), поэтому не меняем два
-  // значения местами, а перенумеровываем весь список после перестановки.
-  const reordered = [...siblings]
-  reordered[index] = target
-  reordered[index + direction] = image
-
+  // Позиции у разных цветов не пересекаются: ставим ленту этого цвета на
+  // те же номера, что она занимала, только в новом порядке.
+  const slots = siblings.map((i) => i.position).sort((x, y) => x - y)
+  const unique = new Set(slots).size === slots.length
   await prisma.$transaction(
-    reordered.map((item, position) =>
-      prisma.productImage.update({ where: { id: item.id }, data: { position } })
+    reordered.map((item, index) =>
+      prisma.productImage.update({
+        where: { id: item.id },
+        data: { position: unique ? slots[index] : index },
+      })
     )
   )
 

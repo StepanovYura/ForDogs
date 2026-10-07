@@ -39,19 +39,17 @@ export async function renameCategoryAction(formData) {
   refresh()
 }
 
-export async function moveCategoryAction(formData) {
+// Номер места категории в списке: остальные сдвигаются.
+export async function setCategoryPositionAction(formData) {
   await requireAdmin()
   const id = String(formData.get('id'))
-  const direction = String(formData.get('direction')) === 'up' ? -1 : 1
-
   const list = await prisma.category.findMany({ orderBy: [{ position: 'asc' }, { title: 'asc' }] })
-  const index = list.findIndex((c) => c.id === id)
-  const target = list[index + direction]
-  if (index < 0 || !target) return
+  const current = list.find((c) => c.id === id)
+  if (!current) return
 
-  const reordered = [...list]
-  reordered[index] = target
-  reordered[index + direction] = list[index]
+  const target = Math.min(Math.max(Number(formData.get('position')) - 1 || 0, 0), list.length - 1)
+  const reordered = list.filter((c) => c.id !== id)
+  reordered.splice(target, 0, current)
   await prisma.$transaction(
     reordered.map((c, position) => prisma.category.update({ where: { id: c.id }, data: { position } }))
   )

@@ -4,6 +4,8 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useCart } from '@/context/CartContext'
 import { formatPrice } from '@/lib/money'
+import ConsentCheckbox from '@/components/ConsentCheckbox'
+import { dolyamePart } from '@/lib/paymentMethods'
 
 // Способы оплаты. Данные карты на нашем сайте не вводятся никогда —
 // только на защищённой платёжной странице банка.
@@ -13,6 +15,11 @@ const METHODS = {
     hint: 'QR-код или приложение вашего банка. Без комиссии и без ввода карты.',
     button: 'Оплатить по СБП',
   },
+  dolyame: {
+    title: 'Долями',
+    hint: '4 платежа по 25% раз в две недели, без переплат. Оформление на странице Т-Банка.',
+    button: 'Оформить «Долями»',
+  },
   card: {
     title: 'Банковская карта',
     hint: 'Visa, Mastercard, МИР. Данные карты вводятся на защищённой странице банка.',
@@ -20,11 +27,17 @@ const METHODS = {
   },
 }
 
-export default function CheckoutForm({ user, methods = ['sbp'] }) {
+export default function CheckoutForm({ user, methods: allMethods = ['sbp'], dolyameLimits = {} }) {
   const { items, totalKopeks, ready, clear } = useCart()
+  // «Долями» доступны только в пределах суммы, которую разрешает банк.
+  const rub = totalKopeks / 100
+  const methods = allMethods.filter(
+    (m) => m !== 'dolyame' || (rub >= (dolyameLimits.min || 0) && rub <= (dolyameLimits.max || Infinity))
+  )
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const [method, setMethod] = useState(methods[0] || 'sbp')
+  const [chosen, setMethod] = useState(methods[0] || 'sbp')
+  const method = methods.includes(chosen) ? chosen : methods[0] || 'sbp'
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -41,6 +54,7 @@ export default function CheckoutForm({ user, methods = ['sbp'] }) {
       postalCode: form.get('postalCode') || '',
       comment: form.get('comment') || '',
       paymentMethod: method,
+      consent: form.get('consent') === 'on',
       items: items.map((i) => ({ variantId: i.variantId, quantity: i.quantity })),
     }
 
@@ -180,12 +194,17 @@ export default function CheckoutForm({ user, methods = ['sbp'] }) {
                 />
                 <span>
                   <strong>{METHODS[key].title}</strong>
-                  <span className="small muted">{METHODS[key].hint}</span>
+                  <span className="small muted">
+                    {METHODS[key].hint}
+                    {key === 'dolyame' && ` Сегодня — ${formatPrice(dolyamePart(totalKopeks))}.`}
+                  </span>
                 </span>
               </label>
             ))}
           </fieldset>
         )}
+
+        <ConsentCheckbox />
 
         <button type="submit" className="btn btn--block" disabled={busy || methods.length === 0}>
           {busy ? 'Создаём платёж…' : METHODS[method]?.button || 'Оплатить'}

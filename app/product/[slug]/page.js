@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import ProductView from './ProductView'
+import { dolyameEnabled } from '@/lib/payments'
 
 export const dynamic = 'force-dynamic'
 
@@ -50,6 +51,11 @@ export default async function ProductPage({ params }) {
       <ProductView
         product={JSON.parse(JSON.stringify(product))}
         sizeGuide={sizeGuide}
+        dolyame={
+          dolyameEnabled()
+            ? { min: Number(process.env.DOLYAME_MIN_RUB) || 0, max: Number(process.env.DOLYAME_MAX_RUB) || 0 }
+            : null
+        }
       />
     </div>
   )

@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { formatPrice } from '@/lib/money'
 import FavoriteButton from './FavoriteButton'
+import { priceRange } from '@/lib/sizes'
 
 // Карточка в сетке каталога. Пока нет фотографий — аккуратная заглушка
 // вместо «битой» картинки.
@@ -9,6 +10,8 @@ import FavoriteButton from './FavoriteButton'
 export default function ProductCard({ product, priority = false }) {
   const cover = product.images?.[0]
   const inStock = product.variants?.some((v) => v.stock > 0)
+  // Если размеры стоят по-разному — «от самой низкой цены».
+  const range = priceRange(product)
 
   // Уникальные цвета товара — кружочки под названием.
   const colors = []
@@ -37,7 +40,9 @@ export default function ProductCard({ product, priority = false }) {
           {!inStock && <span className="card__sold-out">Нет в наличии</span>}
         </div>
         <h3 className="card__title">{product.title}</h3>
-        <div className="card__price">{formatPrice(product.priceKopeks)}</div>
+        <div className="card__price">
+          {range.min === range.max ? formatPrice(range.min) : `от ${formatPrice(range.min)}`}
+        </div>
         {colors.length > 0 && (
           <div className="card__colors">
             {colors.map((c) => (

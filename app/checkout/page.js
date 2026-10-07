@@ -12,7 +12,14 @@ export default async function CheckoutPage() {
   return (
     <div className="page section--tight" style={{ paddingBottom: 48 }}>
       <h1 className="h1">Оформление заказа</h1>
-      <CheckoutForm user={JSON.parse(JSON.stringify(user))} methods={availablePaymentMethods()} />
+      <CheckoutForm
+        user={JSON.parse(JSON.stringify(user))}
+        methods={availablePaymentMethods()}
+        dolyameLimits={{
+          min: Number(process.env.DOLYAME_MIN_RUB) || 0,
+          max: Number(process.env.DOLYAME_MAX_RUB) || 0,
+        }}
+      />
     </div>
   )
 }

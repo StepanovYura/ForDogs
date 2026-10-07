@@ -9,8 +9,9 @@ import Accordion from '@/components/Accordion'
 import SizeGuideModal from '@/components/SizeGuideModal'
 import FavoriteButton from '@/components/FavoriteButton'
 import ReadMore from '@/components/ReadMore'
+import { compareSizes, priceRange, variantPrice } from '@/lib/sizes'
+import { dolyamePart } from '@/lib/paymentMethods'
 
-const SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL']
 // Порядок цветов на карточке. Из базы варианты приходят отсортированными
 // по алфавиту, и первым оказывался бежевый — поэтому задаём порядок явно,
 // чтобы по умолчанию выбирался основной цвет модели.
@@ -22,7 +23,7 @@ const COLOR_ORDER = ['burgundy', 'beige', 'grey', 'black']
 const DEFAULT_RATIO = 2 / 3
 const clampRatio = (r) => Math.min(Math.max(r, 9 / 16), 4 / 3)
 
-export default function ProductView({ product, sizeGuide }) {
+export default function ProductView({ product, sizeGuide, dolyame = null }) {
   const router = useRouter()
   const { add } = useCart()
 
@@ -64,7 +65,7 @@ export default function ProductView({ product, sizeGuide }) {
   const sizes = useMemo(() => {
     return product.variants
       .filter((v) => v.colorSlug === color)
-      .sort((a, b) => SIZE_ORDER.indexOf(a.size) - SIZE_ORDER.indexOf(b.size))
+      .sort((a, b) => compareSizes(a.size, b.size))
   }, [product.variants, color])
 
   // Фотографии выбранного цвета, за ними — общие фото товара.
@@ -88,6 +89,7 @@ export default function ProductView({ product, sizeGuide }) {
   }
 
   const selectedVariant = sizes.find((v) => v.size === size) || null
+  const range = useMemo(() => priceRange(product), [product])
   const activeColor = colors.find((c) => c.slug === color)
   const main = gallery[Math.min(shot, Math.max(gallery.length - 1, 0))]
 
@@ -111,7 +113,7 @@ export default function ProductView({ product, sizeGuide }) {
         colorName: selectedVariant.colorName,
         colorHex: selectedVariant.colorHex,
         size: selectedVariant.size,
-        priceKopeks: product.priceKopeks,
+        priceKopeks: variantPrice(selectedVariant, product),
         image: main?.url || '',
         stock: selectedVariant.stock,
       },
@@ -223,7 +225,29 @@ export default function ProductView({ product, sizeGuide }) {
             <h1 className="h1">{product.title}</h1>
             <FavoriteButton productId={product.id} className="fav-btn fav-btn--inline" />
           </div>
-          <div className="product__price">{formatPrice(product.priceKopeks)}</div>
+          {/* Цена зависит от размера: пока размер не выбран и цены разные —
+              показываем «от …», после выбора — цену этого размера. */}
+          <div className="product__price">
+            {selectedVariant
+              ? formatPrice(variantPrice(selectedVariant, product))
+              : range.min === range.max
+                ? formatPrice(range.min)
+                : `от ${formatPrice(range.min)}`}
+          </div>
+          {/* «Долями»: сколько составит каждый из 4 платежей. Показываем,
+              только если способ подключён и цена в разрешённых банком пределах. */}
+          {(() => {
+            if (!dolyame) return null
+            const price = selectedVariant ? variantPrice(selectedVariant, product) : range.min
+            const rub = price / 100
+            if (rub < (dolyame.min || 0) || rub > (dolyame.max || Infinity)) return null
+            return (
+              <div className="product__dolyame">
+                {selectedVariant || range.min === range.max ? '' : 'от '}4 платежа по{' '}
+                {formatPrice(dolyamePart(price))} с «Долями»
+              </div>
+            )
+          })()}
 
           {product.description && (
             <ReadMore lines={3} className="muted product__description">

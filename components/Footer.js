@@ -1,6 +1,18 @@
 import Link from 'next/link'
+import SocialLinks from './SocialLinks'
 
-export default function Footer({ categories = [] }) {
+// Способы оплаты в подвале. Банк просит показывать логотипы платёжных
+// систем: когда Т-Банк пришлёт официальный набор логотипов, текстовые
+// значки можно заменить картинками.
+const PAYMENT_BADGES = ['МИР', 'VISA', 'Mastercard', 'СБП']
+
+export default function Footer({ categories = [], siteInfo = { requisites: {}, socials: {} }, dolyame = false }) {
+  const badges = dolyame ? [...PAYMENT_BADGES, 'Долями'] : PAYMENT_BADGES
+  const r = siteInfo.requisites
+  const requisitesLine = [r.sellerName, r.inn && `ИНН ${r.inn}`, r.ogrn && `ОГРН ${r.ogrn}`]
+    .filter(Boolean)
+    .join(' · ')
+
   return (
     <footer className="footer">
       <div className="page">
@@ -14,6 +26,7 @@ export default function Footer({ categories = [] }) {
               Минималистичная одежда для собак. Шьём небольшими партиями,
               проверяем посадку на живых собаках, а не на манекенах.
             </p>
+            <SocialLinks socials={siteInfo.socials} />
           </div>
 
           <div>
@@ -60,14 +73,35 @@ export default function Footer({ categories = [] }) {
               <li>
                 <Link prefetch={false} href="/contacts">Контакты</Link>
               </li>
+              <li>
+                <Link prefetch={false} href="/offer">Публичная оферта</Link>
+              </li>
+              <li>
+                <Link prefetch={false} href="/privacy">Политика конфиденциальности</Link>
+              </li>
             </ul>
           </div>
         </div>
 
         <div className="footer__bottom">
-          <span>© {new Date().getFullYear()} NIXDOG STUDIO</span>
-          <span>Оплата картой и через СБП</span>
+          <span>
+            © {new Date().getFullYear()} NIXDOG STUDIO
+            {requisitesLine && <span className="footer__requisites">{requisitesLine}</span>}
+          </span>
+          <span className="pay-badges" aria-label="Способы оплаты">
+            {badges.map((b) => (
+              <span key={b} className="pay-badge">
+                {b}
+              </span>
+            ))}
+          </span>
         </div>
+        {siteInfo.socials.instagram && (
+          <p className="footer__note">
+            * Instagram принадлежит компании Meta, признанной экстремистской
+            организацией и запрещённой в России.
+          </p>
+        )}
       </div>
     </footer>
   )

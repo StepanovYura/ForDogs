@@ -10,6 +10,7 @@ import { getCurrentUser } from '@/lib/auth'
 import { checkoutSchema } from '@/lib/validation'
 import { cancelOrder } from '@/lib/orders'
 import { expireStalePayments, startPayment } from '@/lib/payments'
+import { HOSTED_METHODS } from '@/lib/paymentMethods'
 
 export const dynamic = 'force-dynamic'
 
@@ -63,7 +64,9 @@ export async function POST(request) {
           colorSnapshot: variant.colorName,
           sizeSnapshot: variant.size,
           imageSnapshot: variant.product.images[0]?.url || '',
-          priceKopeks: variant.product.priceKopeks,
+          // Цена размера, если задана, иначе цена товара. Всегда из базы,
+          // не из браузера.
+          priceKopeks: variant.priceKopeks ?? variant.product.priceKopeks,
           quantity: item.quantity,
         })
       }
@@ -110,13 +113,13 @@ export async function POST(request) {
     const payment = await startPayment(order, input.paymentMethod)
     // СБП — на нашу страницу заказа с QR-кодом; карта — на платёжную
     // страницу банка, оттуда банк вернёт покупателя на страницу заказа.
-    const redirectUrl = input.paymentMethod === 'card' ? payment.url : `/order/${order.id}`
+    const redirectUrl = HOSTED_METHODS.includes(input.paymentMethod) ? payment.url : `/order/${order.id}`
     return NextResponse.json({ orderId: order.id, redirectUrl })
   } catch (error) {
     // Банк не создал платёж — возвращаем товары на склад и отменяем заказ,
     // иначе остатки «зависнут» в никуда.
     console.error('Оплата: не удалось создать платёж', error)
-    await cancelOrder(order.id).catch(() => {})
+    await cancelOrder(order.id, { notify: false }).catch(() => {})
     return NextResponse.json(
       { error: error.message || 'Оплата временно недоступна' },
       { status: 502 }

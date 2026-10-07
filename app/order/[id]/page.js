@@ -31,7 +31,7 @@ export default async function OrderPage({ params }) {
   const paid = order.status !== 'PENDING' && order.status !== 'CANCELED'
   const awaitingPayment = order.status === 'PENDING' && order.paymentUrl && order.paymentExpiresAt
 
-  const qrSvg = awaitingPayment && order.paymentMethod !== 'card'
+  const qrSvg = awaitingPayment && order.paymentMethod === 'sbp'
     ? await QRCode.toString(order.paymentUrl, {
         type: 'svg',
         margin: 0,

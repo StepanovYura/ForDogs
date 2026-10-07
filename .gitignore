@@ -18,3 +18,4 @@ probe-db.mjs
 check-storage.mjs
 .env.prod-backup
 .env.local.disabled
+.outbox
