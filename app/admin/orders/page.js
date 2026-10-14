@@ -59,6 +59,8 @@ export default async function AdminOrdersPage({ searchParams }) {
                   {order.user?.email || order.customerEmail}
                 </div>
                 <div className="small muted">
+                  {order.deliveryTitle &&
+                    `${order.deliveryTitle} (${order.deliveryKopeks ? formatPrice(order.deliveryKopeks) : 'бесплатно'}) · `}
                   {order.city}, {order.address}
                   {order.postalCode ? `, ${order.postalCode}` : ''}
                 </div>

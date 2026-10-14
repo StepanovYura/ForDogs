@@ -59,6 +59,12 @@ model Product {
   composition String @default("") // «Состав и уход»
   delivery    String @default("") // «Доставка и возврат»
   isActive    Boolean @default(true)
+  // Скидка на товар, %, — действует на все размеры и цвета. 0 — без скидки.
+  discountPercent Int @default(0)
+  // Самая низкая цена товара с учётом цен размеров и скидки, в копейках.
+  // Пересчитывается при каждом изменении товара; по ней работают фильтр
+  // и сортировка по цене в каталоге.
+  minPriceKopeks  Int @default(0)
   position    Int     @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -151,6 +157,20 @@ model SizeGuideRow {
 }
 
 // Настройки витрины, которые меняет администратор: обложка главной и т.п.
+// Способы доставки и их цены — задаются в «Админка → Доставка».
+// region: ru — по России, by — в Беларусь, msk — экспресс по Москве.
+model DeliveryMethod {
+  id          String  @id @default(cuid())
+  title       String
+  region      String  @default("ru")
+  description String  @default("")
+  priceKopeks Int     @default(0)
+  isActive    Boolean @default(true)
+  position    Int     @default(0)
+
+  @@map("delivery_methods")
+}
+
 model SiteSetting {
   key       String   @id
   value     String
@@ -178,7 +198,11 @@ model Order {
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   status      OrderStatus @default(PENDING)
+  // Итог к оплате: товары + доставка.
   totalKopeks Int
+  // Доставка, выбранная при оформлении: название способа и цена в копейках.
+  deliveryTitle  String @default("")
+  deliveryKopeks Int    @default(0)
 
   // Контакты и доставка — копируются в заказ, чтобы история не «поехала»,
   // если пользователь потом поменяет профиль.

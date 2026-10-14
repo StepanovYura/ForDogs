@@ -22,7 +22,9 @@ export default async function AdminLayout({ children }) {
         <Link href="/admin/orders">Заказы</Link>
         <Link href="/admin/products">Товары</Link>
         <Link href="/admin/categories">Категории</Link>
+        <Link href="/admin/size-guide">Таблица размеров</Link>
         <Link href="/admin/tags">Фильтры</Link>
+        <Link href="/admin/delivery">Доставка</Link>
         <Link href="/admin/home">Главная</Link>
         <Link href="/admin/settings">Реквизиты и соцсети</Link>
         <Link href="/">На сайт</Link>

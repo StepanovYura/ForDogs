@@ -83,6 +83,12 @@ export default async function OrderPage({ params }) {
               <span>{formatPrice(item.priceKopeks * item.quantity)}</span>
             </div>
           ))}
+          {order.deliveryTitle && (
+            <div className="summary__row">
+              <span className="muted">Доставка: {order.deliveryTitle}</span>
+              <span>{order.deliveryKopeks ? formatPrice(order.deliveryKopeks) : 'бесплатно'}</span>
+            </div>
+          )}
           <div className="summary__total">
             <span>{paid ? 'Оплачено' : 'К оплате'}</span>
             <span>{formatPrice(order.totalKopeks)}</span>

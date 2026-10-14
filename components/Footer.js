@@ -4,7 +4,7 @@ import SocialLinks from './SocialLinks'
 // Способы оплаты в подвале. Банк просит показывать логотипы платёжных
 // систем: когда Т-Банк пришлёт официальный набор логотипов, текстовые
 // значки можно заменить картинками.
-const PAYMENT_BADGES = ['МИР', 'VISA', 'Mastercard', 'СБП']
+const PAYMENT_BADGES = ['МИР', 'СБП']
 
 export default function Footer({ categories = [], siteInfo = { requisites: {}, socials: {} }, dolyame = false }) {
   const badges = dolyame ? [...PAYMENT_BADGES, 'Долями'] : PAYMENT_BADGES
@@ -22,11 +22,11 @@ export default function Footer({ categories = [], siteInfo = { requisites: {}, s
             <div className="logo__sub" style={{ marginBottom: 14 }}>
               STUDIO
             </div>
-            <p className="small muted footer__about" style={{ maxWidth: 260, margin: 0 }}>
-              Минималистичная одежда для собак. Шьём небольшими партиями,
-              проверяем посадку на живых собаках, а не на манекенах.
+            <p className="footer__tagline">Everyday wear for every pet.</p>
+            <p className="small muted footer__about" style={{ maxWidth: 280, margin: 0 }}>
+              Минимализм, комфорт и продуманный крой. Одежда, созданная с любовью к
+              деталям и уважением к индивидуальности каждого питомца.
             </p>
-            <SocialLinks socials={siteInfo.socials} />
           </div>
 
           <div>
@@ -80,6 +80,8 @@ export default function Footer({ categories = [], siteInfo = { requisites: {}, s
                 <Link prefetch={false} href="/privacy">Политика конфиденциальности</Link>
               </li>
             </ul>
+            {/* Соцсети — внизу колонки «О нас». */}
+            <SocialLinks socials={siteInfo.socials} />
           </div>
         </div>
 

@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { formatPrice } from '@/lib/money'
 import FavoriteButton from './FavoriteButton'
 import { priceRange } from '@/lib/sizes'
+import { orderedColors } from '@/lib/colors'
 
 // Карточка в сетке каталога. Пока нет фотографий — аккуратная заглушка
 // вместо «битой» картинки.
@@ -13,13 +14,9 @@ export default function ProductCard({ product, priority = false }) {
   // Если размеры стоят по-разному — «от самой низкой цены».
   const range = priceRange(product)
 
-  // Уникальные цвета товара — кружочки под названием.
-  const colors = []
-  for (const v of product.variants || []) {
-    if (!colors.some((c) => c.slug === v.colorSlug)) {
-      colors.push({ slug: v.colorSlug, hex: v.colorHex, name: v.colorName })
-    }
-  }
+  // Кружочки цветов — в том же порядке, что и на карточке товара:
+  // первым цвет обложки.
+  const colors = orderedColors(product.variants, cover?.colorSlug)
 
   return (
     <div className="card">
@@ -38,10 +35,13 @@ export default function ProductCard({ product, priority = false }) {
             <div className="card__placeholder">{product.title}</div>
           )}
           {!inStock && <span className="card__sold-out">Нет в наличии</span>}
+          {range.discount > 0 && <span className="card__sale">−{range.discount}%</span>}
         </div>
         <h3 className="card__title">{product.title}</h3>
         <div className="card__price">
           {range.min === range.max ? formatPrice(range.min) : `от ${formatPrice(range.min)}`}
+          {/* Старая цена — зачёркнутой, рядом с новой. */}
+          {range.discount > 0 && <s className="price-old">{formatPrice(range.fullMin)}</s>}
         </div>
         {colors.length > 0 && (
           <div className="card__colors">

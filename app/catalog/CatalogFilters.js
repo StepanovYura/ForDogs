@@ -211,6 +211,12 @@ export default function CatalogFilters({ facets, filters, resetHref, activeCount
             <input type="checkbox" name="stock" value="1" defaultChecked={filters.inStock} />
             Только в наличии
           </label>
+          {facets.hasSale && (
+            <label className="facet__option" style={{ marginTop: 10 }}>
+              <input type="checkbox" name="sale" value="1" defaultChecked={filters.sale} />
+              Со скидкой
+            </label>
+          )}
         </fieldset>
 
         <div className="filters-panel__actions">

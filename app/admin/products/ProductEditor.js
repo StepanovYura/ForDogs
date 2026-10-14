@@ -64,6 +64,20 @@ export default function ProductEditor({ product, categories, tagGroups = [] }) {
             />
           </div>
           <div className="field">
+            <label htmlFor={`discount-${product.id}`}>Скидка, %</label>
+            <input
+              id={`discount-${product.id}`}
+              name="discount"
+              className="input"
+              inputMode="numeric"
+              placeholder="0 — без скидки"
+              defaultValue={product.discountPercent || ''}
+            />
+            <p className="small muted" style={{ margin: '6px 0 0' }}>
+              Действует на все размеры и цвета. Цена округляется до рубля.
+            </p>
+          </div>
+          <div className="field">
             <label>Категория</label>
             <select name="categoryId" className="select" defaultValue={product.categoryId || ''}>
               <option value="">— без категории —</option>

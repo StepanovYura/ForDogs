@@ -1,5 +1,6 @@
 import { requireUser } from '@/lib/auth'
 import { availablePaymentMethods } from '@/lib/payments'
+import { getDeliveryOptions } from '@/lib/delivery'
 import CheckoutForm from './CheckoutForm'
 
 export const dynamic = 'force-dynamic'
@@ -15,6 +16,7 @@ export default async function CheckoutPage() {
       <CheckoutForm
         user={JSON.parse(JSON.stringify(user))}
         methods={availablePaymentMethods()}
+        delivery={await getDeliveryOptions()}
         dolyameLimits={{
           min: Number(process.env.DOLYAME_MIN_RUB) || 0,
           max: Number(process.env.DOLYAME_MAX_RUB) || 0,

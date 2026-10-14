@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/auth'
 import { deleteObject } from '@/lib/storage'
 import { slugify, translit } from '@/lib/slug'
+import { recalcProductPrice } from '@/lib/pricing'
 
 function rublesToKopeks(value) {
   const number = Number(String(value).replace(',', '.'))
@@ -40,6 +41,7 @@ export async function createProductAction(_prevState, formData) {
     },
   })
 
+  await recalcProductPrice(product.id)
   revalidatePath('/admin/products', 'layout')
   revalidatePath('/catalog')
   // Сразу на страницу нового товара: дальше там добавляют цвета, размеры и фото.
@@ -63,14 +65,18 @@ export async function updateProductAction(formData) {
       categoryId: String(formData.get('categoryId') || '') || null,
       isActive: formData.get('isActive') === 'on',
       position: Number(formData.get('position') || 0) || 0,
+      // Скидка, %: от 0 до 90, целое число. Пусто — без скидки.
+      discountPercent: Math.min(Math.max(Math.round(Number(formData.get('discount')) || 0), 0), 90),
       ...(formData.get('tagsEditable')
         ? { tags: { set: formData.getAll('tagIds').map((tagId) => ({ id: String(tagId) })) } }
         : {}),
     },
   })
 
+  await recalcProductPrice(id)
   revalidatePath('/admin/products', 'layout')
   revalidatePath('/catalog')
+  revalidatePath('/product/[slug]', 'page')
 }
 
 export async function deleteProductAction(formData) {
@@ -136,6 +142,7 @@ export async function createFirstVariantAction(formData) {
     update: {},
     create: { productId, colorSlug, colorName, colorHex, size, stock: 0 },
   })
+  await recalcProductPrice(productId)
   refreshProduct()
 }
 
@@ -155,6 +162,7 @@ export async function addSizeAction(formData) {
       })
     )
   )
+  await recalcProductPrice(productId)
   refreshProduct()
 }
 
@@ -165,6 +173,7 @@ export async function removeSizeAction(formData) {
   const productId = String(formData.get('productId'))
   const size = String(formData.get('size'))
   await prisma.productVariant.deleteMany({ where: { productId, size } })
+  await recalcProductPrice(productId)
   refreshProduct()
 }
 
@@ -178,6 +187,7 @@ export async function setSizePriceAction(formData) {
   if (priceKopeks === 0) return
 
   await prisma.productVariant.updateMany({ where: { productId, size }, data: { priceKopeks } })
+  await recalcProductPrice(productId)
   refreshProduct()
 }
 
@@ -207,6 +217,7 @@ export async function addColorAction(formData) {
       })
     )
   )
+  await recalcProductPrice(productId)
   refreshProduct()
 }
 
@@ -222,6 +233,7 @@ export async function updateColorAction(formData) {
     where: { productId, colorSlug },
     data: { colorName, colorHex },
   })
+  await recalcProductPrice(productId)
   refreshProduct()
 }
 
@@ -235,6 +247,7 @@ export async function removeColorAction(formData) {
     prisma.productVariant.deleteMany({ where: { productId, colorSlug } }),
     prisma.productImage.updateMany({ where: { productId, colorSlug }, data: { colorSlug: null } }),
   ])
+  await recalcProductPrice(productId)
   refreshProduct()
 }
 
@@ -251,6 +264,7 @@ export async function saveStockAction(formData) {
     )
   }
   await prisma.$transaction(updates)
+  await recalcProductPrice(productId)
   refreshProduct()
 }
 

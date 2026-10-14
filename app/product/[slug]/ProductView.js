@@ -9,14 +9,13 @@ import Accordion from '@/components/Accordion'
 import SizeGuideModal from '@/components/SizeGuideModal'
 import FavoriteButton from '@/components/FavoriteButton'
 import ReadMore from '@/components/ReadMore'
-import { compareSizes, priceRange, variantPrice } from '@/lib/sizes'
+import { compareSizes, fullVariantPrice, priceRange, variantPrice } from '@/lib/sizes'
 import { dolyamePart } from '@/lib/paymentMethods'
+import { orderedColors } from '@/lib/colors'
 
 // Порядок цветов на карточке. Из базы варианты приходят отсортированными
 // по алфавиту, и первым оказывался бежевый — поэтому задаём порядок явно,
 // чтобы по умолчанию выбирался основной цвет модели.
-const COLOR_ORDER = ['burgundy', 'beige', 'grey', 'black']
-
 // Рамка фото повторяет пропорции снимка: фото видно целиком и без полей.
 // Совсем экзотические пропорции (панорама, «сторис») ограничиваем, чтобы
 // рамка не стала вдвое выше экрана, — тогда по краям будет фон.
@@ -27,20 +26,12 @@ export default function ProductView({ product, sizeGuide, dolyame = null }) {
   const router = useRouter()
   const { add } = useCart()
 
-  // Уникальные цвета в порядке появления вариантов.
-  const colors = useMemo(() => {
-    const list = []
-    for (const v of product.variants) {
-      if (!list.some((c) => c.slug === v.colorSlug)) {
-        list.push({ slug: v.colorSlug, name: v.colorName, hex: v.colorHex })
-      }
-    }
-    return list.sort((a, b) => {
-      const ia = COLOR_ORDER.indexOf(a.slug)
-      const ib = COLOR_ORDER.indexOf(b.slug)
-      return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib)
-    })
-  }, [product.variants])
+  // Первым — цвет обложки из каталога (первое фото товара), чтобы карточка
+  // открывалась тем же цветом, который покупатель видел в каталоге.
+  const colors = useMemo(
+    () => orderedColors(product.variants, product.images[0]?.colorSlug),
+    [product.variants, product.images]
+  )
 
   const [color, setColor] = useState(colors[0]?.slug ?? null)
   const [size, setSize] = useState(null)
@@ -78,6 +69,27 @@ export default function ProductView({ product, sizeGuide, dolyame = null }) {
   // Лента фото на телефоне листается пальцем; точки под ней показывают,
   // какое фото сейчас на экране.
   const slider = useRef(null)
+
+  // Зум фото на компьютере: при наведении фото увеличивается и следует за
+  // курсором. Координаты пишем прямо в стиль, без перерисовки компонента —
+  // так движение плавное. На телефоне и планшете зума нет.
+  const zoomBox = useRef(null)
+  const canZoom = () =>
+    typeof window !== 'undefined' &&
+    window.matchMedia('(hover: hover) and (pointer: fine) and (min-width: 1025px)').matches
+  function zoomMove(event) {
+    const box = zoomBox.current
+    if (!box || !canZoom()) return
+    const rect = box.getBoundingClientRect()
+    const x = ((event.clientX - rect.left) / rect.width) * 100
+    const y = ((event.clientY - rect.top) / rect.height) * 100
+    box.style.setProperty('--zoom-x', `${Math.min(Math.max(x, 0), 100)}%`)
+    box.style.setProperty('--zoom-y', `${Math.min(Math.max(y, 0), 100)}%`)
+    box.classList.add('is-zoomed')
+  }
+  function zoomLeave() {
+    zoomBox.current?.classList.remove('is-zoomed')
+  }
   function onSlide() {
     const track = slider.current
     if (!track) return
@@ -152,7 +164,13 @@ export default function ProductView({ product, sizeGuide, dolyame = null }) {
             </div>
           </div>
 
-          <div className="product__main" style={{ '--ratio': ratioOf(main) }}>
+          <div
+            className={main ? 'product__main product__main--zoomable' : 'product__main'}
+            style={{ '--ratio': ratioOf(main) }}
+            ref={zoomBox}
+            onMouseMove={main ? zoomMove : undefined}
+            onMouseLeave={zoomLeave}
+          >
             {main ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -233,6 +251,15 @@ export default function ProductView({ product, sizeGuide, dolyame = null }) {
               : range.min === range.max
                 ? formatPrice(range.min)
                 : `от ${formatPrice(range.min)}`}
+            {/* Скидка: старая цена зачёркнута, рядом — сколько процентов. */}
+            {range.discount > 0 && (
+              <>
+                <s className="price-old">
+                  {formatPrice(selectedVariant ? fullVariantPrice(selectedVariant, product) : range.fullMin)}
+                </s>
+                <span className="price-badge">−{range.discount}%</span>
+              </>
+            )}
           </div>
           {/* «Долями»: сколько составит каждый из 4 платежей. Показываем,
               только если способ подключён и цена в разрешённых банком пределах. */}

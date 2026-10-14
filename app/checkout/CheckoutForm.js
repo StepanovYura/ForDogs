@@ -6,6 +6,8 @@ import { useCart } from '@/context/CartContext'
 import { formatPrice } from '@/lib/money'
 import ConsentCheckbox from '@/components/ConsentCheckbox'
 import { dolyamePart } from '@/lib/paymentMethods'
+import { useFormValidation } from '@/lib/formValidation'
+import FieldError from '@/components/FieldError'
 
 // Способы оплаты. Данные карты на нашем сайте не вводятся никогда —
 // только на защищённой платёжной странице банка.
@@ -22,13 +24,28 @@ const METHODS = {
   },
   card: {
     title: 'Банковская карта',
-    hint: 'Visa, Mastercard, МИР. Данные карты вводятся на защищённой странице банка.',
+    hint: 'Карта «Мир». Данные карты вводятся на защищённой странице банка.',
     button: 'Перейти к оплате картой',
   },
 }
 
-export default function CheckoutForm({ user, methods: allMethods = ['sbp'], dolyameLimits = {} }) {
-  const { items, totalKopeks, ready, clear } = useCart()
+const REGION_TITLES = { ru: 'По России', by: 'В Беларусь', msk: 'Экспресс по Москве' }
+
+export default function CheckoutForm({
+  user,
+  methods: allMethods = ['sbp'],
+  dolyameLimits = {},
+  delivery = { methods: [], freeFromKopeks: 0 },
+}) {
+  const { items, totalKopeks: itemsKopeks, ready, clear } = useCart()
+
+  // Доставка: способ выбирает покупатель, цена прибавляется к итогу.
+  // Окончательно сумму всё равно считает сервер — по ценам из базы.
+  const [deliveryId, setDeliveryId] = useState('')
+  const deliveryMethod = delivery.methods.find((m) => m.id === deliveryId) || null
+  const freeDelivery = delivery.freeFromKopeks > 0 && itemsKopeks >= delivery.freeFromKopeks
+  const deliveryKopeks = deliveryMethod && !freeDelivery ? deliveryMethod.priceKopeks : 0
+  const totalKopeks = itemsKopeks + deliveryKopeks
   // «Долями» доступны только в пределах суммы, которую разрешает банк.
   const rub = totalKopeks / 100
   const methods = allMethods.filter(
@@ -39,9 +56,15 @@ export default function CheckoutForm({ user, methods: allMethods = ['sbp'], doly
   const [chosen, setMethod] = useState(methods[0] || 'sbp')
   const method = methods.includes(chosen) ? chosen : methods[0] || 'sbp'
 
+  // Подсказки о незаполненных полях — в стиле сайта, а не окнами браузера.
+  const { errors, validate, clearOnInput } = useFormValidation()
+  const invalid = (name) =>
+    errors[name] ? { 'aria-invalid': true, 'aria-describedby': `${name}-error` } : {}
+
   async function handleSubmit(event) {
     event.preventDefault()
     setError('')
+    if (!validate(event.currentTarget)) return
     setBusy(true)
 
     const form = new FormData(event.currentTarget)
@@ -54,6 +77,7 @@ export default function CheckoutForm({ user, methods: allMethods = ['sbp'], doly
       postalCode: form.get('postalCode') || '',
       comment: form.get('comment') || '',
       paymentMethod: method,
+      deliveryMethodId: deliveryId,
       consent: form.get('consent') === 'on',
       items: items.map((i) => ({ variantId: i.variantId, quantity: i.quantity })),
     }
@@ -96,7 +120,7 @@ export default function CheckoutForm({ user, methods: allMethods = ['sbp'], doly
   }
 
   return (
-    <form className="cart-layout" onSubmit={handleSubmit}>
+    <form className="cart-layout" onSubmit={handleSubmit} onInput={clearOnInput} onChange={clearOnInput} noValidate>
       <div>
         {error && <div className="form-error">{error}</div>}
 
@@ -110,18 +134,24 @@ export default function CheckoutForm({ user, methods: allMethods = ['sbp'], doly
               className="input"
               required
               defaultValue={user.name || ''}
+              {...invalid('customerName')}
             />
+            <FieldError name="customerName" errors={errors} />
           </div>
           <div className="field">
             <label htmlFor="customerPhone">Телефон</label>
             <input
               id="customerPhone"
               name="customerPhone"
+              type="tel"
               className="input"
               required
+              minLength={10}
               placeholder="+7 900 000-00-00"
               defaultValue={user.phone || ''}
+              {...invalid('customerPhone')}
             />
+            <FieldError name="customerPhone" errors={errors} />
           </div>
         </div>
 
@@ -134,7 +164,9 @@ export default function CheckoutForm({ user, methods: allMethods = ['sbp'], doly
             className="input"
             required
             defaultValue={user.email}
+            {...invalid('customerEmail')}
           />
+          <FieldError name="customerEmail" errors={errors} />
         </div>
 
         <h2 className="h3" style={{ marginTop: 32 }}>
@@ -143,7 +175,8 @@ export default function CheckoutForm({ user, methods: allMethods = ['sbp'], doly
         <div className="row-2">
           <div className="field">
             <label htmlFor="city">Город</label>
-            <input id="city" name="city" className="input" required />
+            <input id="city" name="city" className="input" required {...invalid('city')} />
+            <FieldError name="city" errors={errors} />
           </div>
           <div className="field">
             <label htmlFor="postalCode">Индекс</label>
@@ -153,13 +186,57 @@ export default function CheckoutForm({ user, methods: allMethods = ['sbp'], doly
 
         <div className="field">
           <label htmlFor="address">Адрес (улица, дом, квартира)</label>
-          <input id="address" name="address" className="input" required />
+          <input id="address" name="address" className="input" required {...invalid('address')} />
+          <FieldError name="address" errors={errors} />
         </div>
 
         <div className="field">
           <label htmlFor="comment">Комментарий к заказу</label>
           <textarea id="comment" name="comment" className="textarea" />
         </div>
+
+        {delivery.methods.length > 0 && (
+          <fieldset className="delivery-methods">
+            <legend className="h3">Способ доставки</legend>
+            {delivery.freeFromKopeks > 0 && (
+              <p className="small muted" style={{ marginTop: 0 }}>
+                {freeDelivery
+                  ? 'Для этого заказа доставка бесплатная.'
+                  : `Бесплатная доставка — от ${formatPrice(delivery.freeFromKopeks)}.`}
+              </p>
+            )}
+            {Object.entries(REGION_TITLES).map(([region, title]) => {
+              const list = delivery.methods.filter((m) => m.region === region)
+              if (list.length === 0) return null
+              return (
+                <div key={region} className="delivery-methods__group">
+                  <div className="caption">{title}</div>
+                  {list.map((m) => (
+                    <label key={m.id} className="pay-method" data-active={deliveryId === m.id}>
+                      <input
+                        type="radio"
+                        name="deliveryMethodId"
+                        value={m.id}
+                        required
+                        data-message="Выберите способ доставки"
+                        checked={deliveryId === m.id}
+                        onChange={() => setDeliveryId(m.id)}
+                      />
+                      <span>
+                        <strong>{m.title}</strong>
+                        {m.description && <span className="small muted">{m.description}</span>}
+                      </span>
+                      <span className="delivery-methods__price">
+                        {freeDelivery || m.priceKopeks === 0 ? 'бесплатно' : formatPrice(m.priceKopeks)}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )
+            })}
+            <FieldError name="deliveryMethodId" errors={errors} />
+          </fieldset>
+        )}
       </div>
 
       <aside className="summary">
@@ -176,6 +253,20 @@ export default function CheckoutForm({ user, methods: allMethods = ['sbp'], doly
             <span>{formatPrice(i.priceKopeks * i.quantity)}</span>
           </div>
         ))}
+        {delivery.methods.length > 0 && (
+          <>
+            <div className="summary__row">
+              <span className="muted">Товары</span>
+              <span>{formatPrice(itemsKopeks)}</span>
+            </div>
+            <div className="summary__row">
+              <span className="muted">Доставка{deliveryMethod ? `: ${deliveryMethod.title}` : ''}</span>
+              <span>
+                {!deliveryMethod ? 'выберите способ' : deliveryKopeks === 0 ? 'бесплатно' : formatPrice(deliveryKopeks)}
+              </span>
+            </div>
+          </>
+        )}
         <div className="summary__total">
           <span>К оплате</span>
           <span>{formatPrice(totalKopeks)}</span>
@@ -204,7 +295,7 @@ export default function CheckoutForm({ user, methods: allMethods = ['sbp'], doly
           </fieldset>
         )}
 
-        <ConsentCheckbox />
+        <ConsentCheckbox error={errors.consent} />
 
         <button type="submit" className="btn btn--block" disabled={busy || methods.length === 0}>
           {busy ? 'Создаём платёж…' : METHODS[method]?.button || 'Оплатить'}

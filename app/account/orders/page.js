@@ -70,6 +70,12 @@ export default async function MyOrdersPage() {
               </div>
             ))}
 
+            {order.deliveryTitle && (
+              <div className="summary__row">
+                <span className="muted">Доставка: {order.deliveryTitle}</span>
+                <span>{order.deliveryKopeks ? formatPrice(order.deliveryKopeks) : 'бесплатно'}</span>
+              </div>
+            )}
             <div className="summary__total">
               <span>Итого</span>
               <span>{formatPrice(order.totalKopeks)}</span>

@@ -1,11 +1,16 @@
 import { prisma } from '@/lib/prisma'
 import ReadMore from '@/components/ReadMore'
+import SizeTable from '@/components/SizeTable'
+import { compareSizes } from '@/lib/sizes'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Как выбрать размер — NIXDOG STUDIO' }
 
 export default async function SizeGuidePage() {
-  const rows = await prisma.sizeGuideRow.findMany({ orderBy: { position: 'asc' } }).catch(() => [])
+  const rows = await prisma.sizeGuideRow
+    .findMany()
+    .then((list) => list.sort((a, b) => compareSizes(a.size, b.size)))
+    .catch(() => [])
 
   return (
     <div className="page section">
@@ -39,29 +44,8 @@ export default async function SizeGuidePage() {
           </p>
         </ReadMore>
 
-        <div className="table-wrap" style={{ marginTop: 32 }}>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Размер</th>
-                <th>Длина спины, см</th>
-                <th>Обхват груди, см</th>
-                <th>Обхват шеи, см</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.size}>
-                  <td>
-                    <strong>{row.size}</strong>
-                  </td>
-                  <td>{row.backLength}</td>
-                  <td>{row.chest}</td>
-                  <td>{row.neck}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div style={{ marginTop: 32 }}>
+          <SizeTable rows={rows} />
         </div>
       </div>
     </div>

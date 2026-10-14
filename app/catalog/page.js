@@ -76,6 +76,7 @@ export default async function CatalogPage({ searchParams }) {
     }
   }
   if (filters.inStock) chips.push({ label: 'В наличии', href: catalogHref(filters, { inStock: false }) })
+  if (filters.sale) chips.push({ label: 'Со скидкой', href: catalogHref(filters, { sale: false }) })
 
   const resetHref = catalogHref({ ...parseFilters({}), category: filters.category })
   const activeCategory = categories.find((c) => c.slug === filters.category)

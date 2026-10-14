@@ -14,7 +14,8 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "node prisma/seed.mjs",
-    "images:sizes": "node scripts/backfill-image-sizes.mjs"
+    "images:sizes": "node scripts/backfill-image-sizes.mjs",
+    "prices:recalc": "node scripts/recalc-prices.mjs"
   },
   "prisma": {
     "seed": "node prisma/seed.mjs"

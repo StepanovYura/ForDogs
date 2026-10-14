@@ -10,6 +10,8 @@ import { getCurrentUser } from '@/lib/auth'
 import { checkoutSchema } from '@/lib/validation'
 import { cancelOrder } from '@/lib/orders'
 import { expireStalePayments, startPayment } from '@/lib/payments'
+import { variantPrice } from '@/lib/sizes'
+import { deliveryPrice, getDeliveryOptions } from '@/lib/delivery'
 import { HOSTED_METHODS } from '@/lib/paymentMethods'
 
 export const dynamic = 'force-dynamic'
@@ -32,6 +34,14 @@ export async function POST(request) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 })
   }
   const input = parsed.data
+
+  // Доставка: способ выбирает покупатель, цену берём из базы. Если в
+  // админке заведены способы доставки — выбрать один из них обязательно.
+  const delivery = await getDeliveryOptions()
+  const deliveryMethod = delivery.methods.find((m) => m.id === input.deliveryMethodId) || null
+  if (delivery.methods.length > 0 && !deliveryMethod) {
+    return NextResponse.json({ error: 'Выберите способ доставки' }, { status: 400 })
+  }
 
   // Снимаем резерв с заказов, чей QR истёк, — иначе последняя вещь может
   // числиться занятой за тем, кто давно ушёл со страницы оплаты.
@@ -64,14 +74,16 @@ export async function POST(request) {
           colorSnapshot: variant.colorName,
           sizeSnapshot: variant.size,
           imageSnapshot: variant.product.images[0]?.url || '',
-          // Цена размера, если задана, иначе цена товара. Всегда из базы,
+          // Цена размера (или товара) со скидкой товара. Всегда из базы,
           // не из браузера.
-          priceKopeks: variant.priceKopeks ?? variant.product.priceKopeks,
+          priceKopeks: variantPrice(variant, variant.product),
           quantity: item.quantity,
         })
       }
 
-      const totalKopeks = lines.reduce((sum, l) => sum + l.priceKopeks * l.quantity, 0)
+      const itemsKopeks = lines.reduce((sum, l) => sum + l.priceKopeks * l.quantity, 0)
+      const deliveryKopeks = deliveryPrice(deliveryMethod, itemsKopeks, delivery.freeFromKopeks)
+      const totalKopeks = itemsKopeks + deliveryKopeks
 
       // Резервируем остатки сразу: условие `stock >= quantity` в самом
       // UPDATE защищает от гонки, если двое покупают последнюю вещь.
@@ -89,6 +101,8 @@ export async function POST(request) {
         data: {
           userId: user.id,
           totalKopeks,
+          deliveryTitle: deliveryMethod ? deliveryMethod.title : '',
+          deliveryKopeks,
           customerName: input.customerName,
           customerEmail: input.customerEmail,
           customerPhone: input.customerPhone,

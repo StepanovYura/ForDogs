@@ -108,6 +108,11 @@ export default async function AdminProductsPage({ searchParams }) {
                       Скрыт
                     </span>
                   )}
+                  {product.discountPercent > 0 && (
+                    <span className="badge badge--pending" style={{ marginLeft: 10 }}>
+                      −{product.discountPercent}%
+                    </span>
+                  )}
                   <div className="small muted">
                     {product.category?.title || 'без категории'} · вариантов: {product.variants.length}{' '}
                     · на складе: {stock} шт. · фото: {product._count.images}

@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import ProductView from './ProductView'
 import { dolyameEnabled } from '@/lib/payments'
+import { compareSizes } from '@/lib/sizes'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,7 +28,9 @@ export default async function ProductPage({ params }) {
         variants: { orderBy: [{ colorSlug: 'asc' }, { size: 'asc' }] },
       },
     }),
-    prisma.sizeGuideRow.findMany({ orderBy: { position: 'asc' } }),
+    prisma.sizeGuideRow
+      .findMany()
+      .then((rows) => rows.sort((a, b) => compareSizes(a.size, b.size))),
   ])
 
   if (!product) notFound()

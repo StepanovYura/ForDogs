@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import SizeTable from '@/components/SizeTable'
 
 // «Как выбрать размер?» — таблица замеров прямо на карточке товара.
 export default function SizeGuideModal({ rows }) {
@@ -43,28 +44,7 @@ export default function SizeGuideModal({ rows }) {
               больший.
             </p>
 
-            <div className="table-wrap">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Размер</th>
-                    <th>Длина спины, см</th>
-                    <th>Обхват груди, см</th>
-                    <th>Обхват шеи, см</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row) => (
-                    <tr key={row.size}>
-                      <td>{row.size}</td>
-                      <td>{row.backLength}</td>
-                      <td>{row.chest}</td>
-                      <td>{row.neck}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <SizeTable rows={rows} />
           </div>
         </div>
       )}
