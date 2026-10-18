@@ -17,7 +17,7 @@ export default async function AdminProductPage({ params, searchParams }) {
       where: { id: params.id },
       include: {
         images: { orderBy: { position: 'asc' } },
-        variants: { orderBy: [{ colorName: 'asc' }, { size: 'asc' }] },
+        variants: { orderBy: [{ colorPosition: 'asc' }, { colorName: 'asc' }, { size: 'asc' }] },
         tags: { select: { id: true } },
       },
     }),

@@ -7,6 +7,7 @@ import { requireAdmin } from '@/lib/auth'
 import { deleteObject } from '@/lib/storage'
 import { slugify, translit } from '@/lib/slug'
 import { recalcProductPrice } from '@/lib/pricing'
+import { orderedColors } from '@/lib/colors'
 
 function rublesToKopeks(value) {
   const number = Number(String(value).replace(',', '.'))
@@ -115,12 +116,7 @@ function cleanSize(value) {
 
 async function productColorsAndSizes(productId) {
   const variants = await prisma.productVariant.findMany({ where: { productId } })
-  const colors = []
-  for (const v of variants) {
-    if (!colors.some((c) => c.slug === v.colorSlug)) {
-      colors.push({ slug: v.colorSlug, name: v.colorName, hex: v.colorHex })
-    }
-  }
+  const colors = orderedColors(variants)
   const sizes = [...new Set(variants.map((v) => v.size))]
   // Цена размера — общая для всех цветов, берём с любого его варианта.
   const sizePrice = Object.fromEntries(variants.map((v) => [v.size, v.priceKopeks]))
@@ -158,7 +154,15 @@ export async function addSizeAction(formData) {
       prisma.productVariant.upsert({
         where: { productId_colorSlug_size: { productId, colorSlug: c.slug, size } },
         update: {},
-        create: { productId, colorSlug: c.slug, colorName: c.name, colorHex: c.hex, size, stock: 0 },
+        create: {
+          productId,
+          colorSlug: c.slug,
+          colorName: c.name,
+          colorHex: c.hex,
+          colorPosition: c.position,
+          size,
+          stock: 0,
+        },
       })
     )
   )
@@ -199,7 +203,10 @@ export async function addColorAction(formData) {
   const colorSlug = slugify(translit(colorName))
   if (!colorName || !colorSlug) return
 
-  const { sizes, sizePrice } = await productColorsAndSizes(productId)
+  const { colors, sizes, sizePrice } = await productColorsAndSizes(productId)
+  // Новый цвет встаёт последним (если такой цвет уже есть — остаётся на месте).
+  const existing = colors.find((c) => c.slug === colorSlug)
+  const colorPosition = existing ? existing.position : Math.max(-1, ...colors.map((c) => c.position)) + 1
   await prisma.$transaction(
     sizes.map((size) =>
       prisma.productVariant.upsert({
@@ -210,6 +217,7 @@ export async function addColorAction(formData) {
           colorSlug,
           colorName,
           colorHex,
+          colorPosition,
           size,
           stock: 0,
           priceKopeks: sizePrice[size] ?? null,
@@ -234,6 +242,24 @@ export async function updateColorAction(formData) {
     data: { colorName, colorHex },
   })
   await recalcProductPrice(productId)
+  refreshProduct()
+}
+
+// Поднять цвет на одну позицию. Порядок переписываем целиком (0, 1, 2…),
+// чтобы у всех цветов он был явным, а не «по алфавиту».
+export async function moveColorUpAction(formData) {
+  await requireAdmin()
+  const productId = String(formData.get('productId'))
+  const colorSlug = String(formData.get('colorSlug'))
+  const { colors } = await productColorsAndSizes(productId)
+  const index = colors.findIndex((c) => c.slug === colorSlug)
+  if (index <= 0) return
+  ;[colors[index - 1], colors[index]] = [colors[index], colors[index - 1]]
+  await prisma.$transaction(
+    colors.map((c, position) =>
+      prisma.productVariant.updateMany({ where: { productId, colorSlug: c.slug }, data: { colorPosition: position } })
+    )
+  )
   refreshProduct()
 }
 

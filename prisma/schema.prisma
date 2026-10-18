@@ -129,6 +129,9 @@ model ProductVariant {
   colorName String // Бордовый, Бежевый, ...
   colorHex  String // #7B1E2B — кружок выбора цвета на карточке
   size      String // XS, S, M, L, XL
+  // Порядок цвета в товаре (одинаковый у всех размеров цвета). Первый цвет —
+  // основной: обложка в каталоге и цвет, с которого открывается карточка.
+  colorPosition Int @default(0)
 
   sku   String? @unique
   stock Int     @default(0)

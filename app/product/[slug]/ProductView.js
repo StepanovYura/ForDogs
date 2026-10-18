@@ -26,12 +26,9 @@ export default function ProductView({ product, sizeGuide, dolyame = null }) {
   const router = useRouter()
   const { add } = useCart()
 
-  // Первым — цвет обложки из каталога (первое фото товара), чтобы карточка
-  // открывалась тем же цветом, который покупатель видел в каталоге.
-  const colors = useMemo(
-    () => orderedColors(product.variants, product.images[0]?.colorSlug),
-    [product.variants, product.images]
-  )
+  // Порядок цветов — из админки. Карточка открывается основным (первым)
+  // цветом — тем же, чьё фото покупатель видел обложкой в каталоге.
+  const colors = useMemo(() => orderedColors(product.variants), [product.variants])
 
   const [color, setColor] = useState(colors[0]?.slug ?? null)
   const [size, setSize] = useState(null)

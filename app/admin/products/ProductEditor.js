@@ -5,8 +5,10 @@ import { photoWarnings } from '@/lib/photoQuality'
 import ConfirmButton from '@/components/admin/ConfirmButton'
 import PositionSelect from '@/components/admin/PositionSelect'
 import { SIZE_SUGGESTIONS, compareSizes } from '@/lib/sizes'
+import { orderedColors } from '@/lib/colors'
 import {
   addColorAction,
+  moveColorUpAction,
   addSizeAction,
   createFirstVariantAction,
   deleteImageAction,
@@ -31,12 +33,8 @@ const afterSubmitReset = (action) => async (formData) => {
 // Редактор товара — отдельная страница /admin/products/<id>: основные поля,
 // метки, варианты, фотографии.
 export default function ProductEditor({ product, categories, tagGroups = [] }) {
-  const colors = []
-  for (const v of product.variants) {
-    if (!colors.some((c) => c.slug === v.colorSlug)) {
-      colors.push({ slug: v.colorSlug, name: v.colorName, hex: v.colorHex })
-    }
-  }
+  // Тот же порядок цветов, что в каталоге и на карточке товара.
+  const colors = orderedColors(product.variants)
   const sizes = [...new Set(product.variants.map((v) => v.size))].sort(compareSizes)
   // Цена размера одна на все цвета — берём с любого варианта этого размера.
   const sizePrice = Object.fromEntries(product.variants.map((v) => [v.size, v.priceKopeks]))
@@ -235,7 +233,11 @@ export default function ProductEditor({ product, categories, tagGroups = [] }) {
           {/* Цвета */}
           <div className="variant-block">
             <div className="caption">Цвета</div>
-            {colors.map((color) => (
+            <p className="small muted" style={{ margin: '0 0 10px' }}>
+              Первый цвет — основной: его фото стоит обложкой в каталоге, с него открывается
+              карточка товара. Порядок меняется кнопкой «Выше».
+            </p>
+            {colors.map((color, index) => (
               <div className="inline-form" key={color.slug} style={{ marginBottom: 8 }}>
                 <form action={updateColorAction} className="inline-form">
                   <input type="hidden" name="productId" value={product.id} />
@@ -253,6 +255,17 @@ export default function ProductEditor({ product, categories, tagGroups = [] }) {
                     Сохранить
                   </button>
                 </form>
+                {index === 0 ? (
+                  <span className="small muted">основной</span>
+                ) : (
+                  <form action={moveColorUpAction}>
+                    <input type="hidden" name="productId" value={product.id} />
+                    <input type="hidden" name="colorSlug" value={color.slug} />
+                    <button type="submit" className="btn btn--ghost btn--sm">
+                      ↑ Выше
+                    </button>
+                  </form>
+                )}
                 <ConfirmButton
                   action={removeColorAction}
                   fields={{ productId: product.id, colorSlug: color.slug }}

@@ -2,21 +2,19 @@ import Link from 'next/link'
 import { formatPrice } from '@/lib/money'
 import FavoriteButton from './FavoriteButton'
 import { priceRange } from '@/lib/sizes'
-import { orderedColors } from '@/lib/colors'
+import { orderedColors, coverImage } from '@/lib/colors'
 
 // Карточка в сетке каталога. Пока нет фотографий — аккуратная заглушка
 // вместо «битой» картинки.
 // priority — для карточек, попадающих в первый экран. Остальные грузятся
 // лениво: их всё равно не видно, пока страницу не прокрутят.
 export default function ProductCard({ product, priority = false }) {
-  const cover = product.images?.[0]
+  // Цвета — в порядке из админки; обложка — фото основного (первого) цвета.
+  const colors = orderedColors(product.variants)
+  const cover = coverImage(product.images, colors)
   const inStock = product.variants?.some((v) => v.stock > 0)
   // Если размеры стоят по-разному — «от самой низкой цены».
   const range = priceRange(product)
-
-  // Кружочки цветов — в том же порядке, что и на карточке товара:
-  // первым цвет обложки.
-  const colors = orderedColors(product.variants, cover?.colorSlug)
 
   return (
     <div className="card">
