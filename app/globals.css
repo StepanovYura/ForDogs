@@ -1146,6 +1146,19 @@ textarea {
   white-space: nowrap;
 }
 
+.size-table__note {
+  margin: 12px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+.size-table__note a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 /* ──────────────────────────── Корзина ──────────────────────────── */
 
 .cart-layout {
