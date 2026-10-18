@@ -19,3 +19,4 @@ check-storage.mjs
 .env.prod-backup
 .env.local.disabled
 .outbox
+.env.migrate
