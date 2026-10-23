@@ -39,7 +39,10 @@ export default async function AdminHome() {
     {
       label: 'Адрес сайта',
       ok: Boolean(process.env.NEXT_PUBLIC_SITE_URL),
-      hint: 'NEXT_PUBLIC_SITE_URL — нужен для возврата после оплаты',
+      // Показываем само значение: так видно, что сборка подхватила нужный адрес.
+      hint: process.env.NEXT_PUBLIC_SITE_URL
+        ? `NEXT_PUBLIC_SITE_URL = ${process.env.NEXT_PUBLIC_SITE_URL}`
+        : 'NEXT_PUBLIC_SITE_URL — нужен для возврата после оплаты',
     },
   ]
 

@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { requireUser } from '@/lib/auth'
 import SignOutButton from '@/components/SignOutButton'
 import ProfileForm from './ProfileForm'
+import PasswordForm from './PasswordForm'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Личный кабинет — NIXDOG STUDIO' }
@@ -18,6 +19,9 @@ export default async function AccountPage() {
           <h2 className="h3">Профиль</h2>
           <p className="small muted">{user.email}</p>
           <ProfileForm user={JSON.parse(JSON.stringify(user))} />
+
+          <h2 className="h3" style={{ marginTop: 32 }}>Смена пароля</h2>
+          <PasswordForm />
         </div>
 
         <div className="panel">
