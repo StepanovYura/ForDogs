@@ -2,6 +2,7 @@
 
 import { useFormState, useFormStatus } from 'react-dom'
 import { updateProfileAction } from './actions'
+import PhoneInput from '@/components/PhoneInput'
 
 function Submit() {
   const { pending } = useFormStatus()
@@ -18,6 +19,7 @@ export default function ProfileForm({ user }) {
   return (
     <form action={action}>
       {state?.ok && <div className="form-ok">{state.ok}</div>}
+      {state?.error && <div className="form-error">{state.error}</div>}
 
       <div className="field">
         <label htmlFor="name">Имя</label>
@@ -26,13 +28,7 @@ export default function ProfileForm({ user }) {
 
       <div className="field">
         <label htmlFor="phone">Телефон</label>
-        <input
-          id="phone"
-          name="phone"
-          className="input"
-          defaultValue={user.phone || ''}
-          placeholder="+7 900 000-00-00"
-        />
+        <PhoneInput id="phone" name="phone" className="input" defaultValue={user.phone || ''} />
       </div>
 
       <Submit />

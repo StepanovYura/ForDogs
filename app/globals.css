@@ -788,6 +788,19 @@ textarea {
   display: none;
 }
 
+/* Скрыто с экрана, но доступно поисковикам и экранным чтецам. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .slider {
   display: flex;
   overflow-x: auto;
@@ -808,10 +821,29 @@ textarea {
   background: var(--bg-tile);
 }
 
+.slider__slide {
+  overflow: hidden;
+}
+
 .slider__slide img {
+  position: relative;
   width: 100%;
   height: 100%;
   object-fit: contain;
+}
+
+.slider__slide--fill img {
+  object-fit: cover;
+}
+
+/* Размытая копия фото за ним — закрывает пустые края рамки. */
+.slider__slide img.slider__backdrop {
+  position: absolute;
+  inset: 0;
+  object-fit: cover;
+  filter: blur(24px) saturate(1.1);
+  transform: scale(1.15);
+  opacity: 0.85;
 }
 
 .slider__dots {

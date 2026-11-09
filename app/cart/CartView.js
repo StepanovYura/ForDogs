@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useCart } from '@/context/CartContext'
+import { lineKey, useCart } from '@/context/CartContext'
+import { sizeLabel } from '@/lib/sizes'
 import { formatPrice } from '@/lib/money'
 
 export default function CartView() {
@@ -24,7 +25,7 @@ export default function CartView() {
     <div className="cart-layout">
       <div>
         {items.map((item) => (
-          <div className="cart-row" key={item.variantId}>
+          <div className="cart-row" key={lineKey(item)}>
             <div className="cart-row__media">
               {item.image ? (
                 /* eslint-disable-next-line @next/next/no-img-element */
@@ -37,13 +38,13 @@ export default function CartView() {
                 {item.title}
               </Link>
               <p className="small muted" style={{ margin: '4px 0 12px' }}>
-                {item.colorName} · размер {item.size}
+                {item.colorName} · {item.humanSize ? sizeLabel(item.size, item.humanSize) : `размер ${item.size}`}
               </p>
 
               <div className="qty">
                 <button
                   type="button"
-                  onClick={() => setQuantity(item.variantId, item.quantity - 1)}
+                  onClick={() => setQuantity(lineKey(item), item.quantity - 1)}
                   aria-label="Убрать одну штуку"
                 >
                   −
@@ -52,7 +53,7 @@ export default function CartView() {
                 <button
                   type="button"
                   onClick={() =>
-                    setQuantity(item.variantId, Math.min(item.quantity + 1, item.stock ?? 20))
+                    setQuantity(lineKey(item), Math.min(item.quantity + 1, item.stock ?? 20))
                   }
                   disabled={item.stock != null && item.quantity >= item.stock}
                   aria-label="Добавить одну штуку"
@@ -74,7 +75,7 @@ export default function CartView() {
                 type="button"
                 className="link-underline"
                 style={{ marginTop: 10 }}
-                onClick={() => remove(item.variantId)}
+                onClick={() => remove(lineKey(item))}
               >
                 Удалить
               </button>

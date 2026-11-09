@@ -81,6 +81,9 @@ export default async function AdminOrdersPage({ searchParams }) {
                     {order.paymentProvider ? ` (${order.paymentProvider})` : ''}: {order.paymentId}
                   </div>
                 )}
+                {order.paymentStatus === 'refunded' && (
+                  <div className="small muted">Деньги возвращены через «Долями»</div>
+                )}
                 {order.status === 'CANCELED' && order.paymentStatus === 'succeeded' && (
                   <div className="small" style={{ color: 'var(--danger)', maxWidth: 260 }}>
                     Деньги пришли уже после отмены заказа: верните оплату через банк

@@ -7,6 +7,13 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 const STORAGE_KEY = 'nixdog_cart_v1'
 const CartContext = createContext(null)
 
+// Строка корзины — размер собаки (variantId) и, у парных вещей, размер
+// человека: один и тот же размер собаки с разными размерами человека —
+// разные строки.
+export function lineKey(item) {
+  return item.humanSize ? `${item.variantId}|${item.humanSize}` : item.variantId
+}
+
 export function CartProvider({ children }) {
   const [items, setItems] = useState([])
   const [ready, setReady] = useState(false)
@@ -32,13 +39,14 @@ export function CartProvider({ children }) {
 
   const value = useMemo(() => {
     // item: { variantId, productSlug, title, colorName, colorHex, size,
-    //         priceKopeks, image, quantity, stock }
+    //         humanSize?, priceKopeks, image, quantity, stock }
     function add(item, quantity = 1) {
       setItems((prev) => {
-        const found = prev.find((i) => i.variantId === item.variantId)
+        const key = lineKey(item)
+        const found = prev.find((i) => lineKey(i) === key)
         if (found) {
           return prev.map((i) =>
-            i.variantId === item.variantId
+            lineKey(i) === key
               ? { ...i, quantity: Math.min(i.quantity + quantity, item.stock ?? 20) }
               : i
           )
@@ -47,16 +55,16 @@ export function CartProvider({ children }) {
       })
     }
 
-    function setQuantity(variantId, quantity) {
+    function setQuantity(key, quantity) {
       setItems((prev) =>
         prev
-          .map((i) => (i.variantId === variantId ? { ...i, quantity } : i))
+          .map((i) => (lineKey(i) === key ? { ...i, quantity } : i))
           .filter((i) => i.quantity > 0)
       )
     }
 
-    function remove(variantId) {
-      setItems((prev) => prev.filter((i) => i.variantId !== variantId))
+    function remove(key) {
+      setItems((prev) => prev.filter((i) => lineKey(i) !== key))
     }
 
     function clear() {

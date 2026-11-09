@@ -7,11 +7,24 @@ import { getCurrentUser } from '@/lib/auth'
 import { getCategories } from '@/lib/categories'
 import { getSiteInfo } from '@/lib/settings'
 import { dolyameEnabled } from '@/lib/payments'
+import { SITE_NAME, siteOrigin } from '@/lib/seo'
+
+const DESCRIPTION =
+  'Минималистичная одежда для собак: толстовки, свитшоты, куртки и аксессуары. Размеры XS–XL, доставка по России.'
 
 export const metadata = {
+  metadataBase: new URL(siteOrigin()),
   title: 'NIXDOG STUDIO — одежда для собак',
-  description:
-    'Минималистичная одежда для собак: толстовки, свитшоты, куртки и аксессуары. Размеры XS–XL, доставка по России.',
+  description: DESCRIPTION,
+  applicationName: SITE_NAME,
+  // Превью ссылки в мессенджерах и соцсетях.
+  openGraph: { siteName: SITE_NAME, locale: 'ru_RU', type: 'website', title: 'NIXDOG STUDIO — одежда для собак', description: DESCRIPTION },
+  // Коды подтверждения прав на сайт из Яндекс Вебмастера и Google Search
+  // Console (только сам код из meta-тега).
+  verification: {
+    ...(process.env.YANDEX_VERIFICATION ? { yandex: process.env.YANDEX_VERIFICATION } : {}),
+    ...(process.env.GOOGLE_SITE_VERIFICATION ? { google: process.env.GOOGLE_SITE_VERIFICATION } : {}),
+  },
 }
 
 // Шапке нужны свежие данные о входе, поэтому страницы не кэшируем статически.

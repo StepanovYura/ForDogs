@@ -10,7 +10,7 @@ import { getCurrentUser } from '@/lib/auth'
 import { checkoutSchema } from '@/lib/validation'
 import { cancelOrder } from '@/lib/orders'
 import { expireStalePayments, startPayment } from '@/lib/payments'
-import { variantPrice } from '@/lib/sizes'
+import { parseHumanSizes, sizeLabel, variantPrice } from '@/lib/sizes'
 import { deliveryPrice, getDeliveryOptions } from '@/lib/delivery'
 import { HOSTED_METHODS } from '@/lib/paymentMethods'
 
@@ -57,22 +57,33 @@ export async function POST(request) {
         },
       })
 
+      // Сколько штук каждого размера собаки берут всего: у парной вещи один
+      // размер собаки может лежать в корзине с разными размерами человека.
+      const wanted = {}
+      for (const item of input.items) wanted[item.variantId] = (wanted[item.variantId] || 0) + item.quantity
+
       const lines = []
       for (const item of input.items) {
         const variant = variants.find((v) => v.id === item.variantId)
         if (!variant || !variant.product.isActive) {
           throw new Error('Один из товаров больше не продаётся. Обновите корзину.')
         }
-        if (variant.stock < item.quantity) {
+        if (variant.stock < wanted[variant.id]) {
           throw new Error(
             `«${variant.product.title}», ${variant.colorName}, размер ${variant.size}: в наличии ${variant.stock} шт.`
           )
+        }
+        // Парная вещь: размер человека обязателен и должен быть из списка товара.
+        const humanSizes = parseHumanSizes(variant.product.humanSizes)
+        const humanSize = humanSizes.length ? String(item.humanSize || '').toUpperCase() : ''
+        if (humanSizes.length && !humanSizes.includes(humanSize)) {
+          throw new Error(`«${variant.product.title}»: выберите размер человека. Обновите корзину.`)
         }
         lines.push({
           variantId: variant.id,
           titleSnapshot: variant.product.title,
           colorSnapshot: variant.colorName,
-          sizeSnapshot: variant.size,
+          sizeSnapshot: sizeLabel(variant.size, humanSize),
           imageSnapshot: variant.product.images[0]?.url || '',
           // Цена размера (или товара) со скидкой товара. Всегда из базы,
           // не из браузера.

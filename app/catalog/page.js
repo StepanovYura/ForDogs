@@ -16,9 +16,24 @@ import CatalogToolbar from './CatalogToolbar'
 
 export const dynamic = 'force-dynamic'
 
-export const metadata = {
-  title: 'Каталог — NIXDOG STUDIO',
-  description: 'Одежда и аксессуары для собак: толстовки, свитшоты, куртки, банданы.',
+// У раздела каталога — своё название и свой адрес для поисковиков.
+// Сортировка, фильтры и страницы списка — те же разделы, поэтому
+// канонический адрес у них без этих параметров.
+export async function generateMetadata({ searchParams }) {
+  const slug = typeof searchParams?.category === 'string' ? searchParams.category : ''
+  const category = slug ? (await getCategories().catch(() => [])).find((c) => c.slug === slug) : null
+  if (!category) {
+    return {
+      title: 'Каталог — NIXDOG STUDIO',
+      description: 'Одежда и аксессуары для собак: толстовки, свитшоты, куртки, банданы.',
+      alternates: { canonical: '/catalog' },
+    }
+  }
+  return {
+    title: `${category.title} для собак — NIXDOG STUDIO`,
+    description: `${category.title} для собак от NIXDOG STUDIO: минималистичный дизайн, размеры XS–XL, доставка по России.`,
+    alternates: { canonical: `/catalog?category=${category.slug}` },
+  }
 }
 
 export default async function CatalogPage({ searchParams }) {

@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/auth'
 import { STATUS_ORDER } from '@/lib/orderStatus'
 import { notifyOrder } from '@/lib/notifications'
+import { getProvider } from '@/lib/payments'
 
 // Какое письмо уходит покупателю при смене статуса вручную.
 const STATUS_EVENTS = { PAID: 'paid', SHIPPED: 'shipped', DONE: 'done', CANCELED: 'canceled' }
@@ -28,6 +29,32 @@ export async function setOrderStatusAction(formData) {
   // но только один раз, поэтому проверяем прежний статус.
   const returningStock = status === 'CANCELED' && order.status !== 'CANCELED'
 
+  // «Долями»: деньги за оплаченный заказ при отмене возвращаем через API,
+  // а при вручении сообщаем о доставке — «Долями» пробьёт чек «Полный
+  // расчёт». Если «Долями» отказали, статус не меняем и показываем ошибку.
+  let paymentStatus = order.paymentStatus
+  const provider = order.paymentProvider === 'dolyame' ? getProvider('dolyame') : null
+  if (provider && statusChanged && order.paymentId) {
+    const wasPaid = ['PAID', 'SHIPPED', 'DONE'].includes(order.status)
+    if (status === 'CANCELED' && wasPaid && paymentStatus !== 'refunded') {
+      try {
+        await provider.refund(order.paymentId, order, { delivered: paymentStatus === 'delivered' })
+        paymentStatus = 'refunded'
+      } catch (error) {
+        console.error('Долями: возврат не прошёл', order.paymentId, error)
+        throw new Error(`Долями не приняли возврат: ${error.message}`)
+      }
+    } else if (status === 'DONE' && provider.needsDeliveryReceipt() && paymentStatus === 'succeeded') {
+      try {
+        await provider.completeDelivery(order.paymentId, order)
+        paymentStatus = 'delivered'
+      } catch (error) {
+        console.error('Долями: не принято подтверждение доставки', order.paymentId, error)
+        throw new Error(`Долями не приняли подтверждение доставки: ${error.message}`)
+      }
+    }
+  }
+
   await prisma.$transaction(async (tx) => {
     if (returningStock) {
       for (const item of order.items) {
@@ -44,6 +71,7 @@ export async function setOrderStatusAction(formData) {
       data: {
         status,
         trackingNumber: trackingNumber || null,
+        paymentStatus,
         paidAt: status === 'PAID' && !order.paidAt ? new Date() : order.paidAt,
       },
     })

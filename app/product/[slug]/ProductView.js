@@ -9,7 +9,7 @@ import Accordion from '@/components/Accordion'
 import SizeGuideModal from '@/components/SizeGuideModal'
 import FavoriteButton from '@/components/FavoriteButton'
 import ReadMore from '@/components/ReadMore'
-import { compareSizes, fullVariantPrice, priceRange, variantPrice } from '@/lib/sizes'
+import { compareSizes, fullVariantPrice, parseHumanSizes, priceRange, variantPrice } from '@/lib/sizes'
 import { dolyamePart } from '@/lib/paymentMethods'
 import { orderedColors } from '@/lib/colors'
 
@@ -21,6 +21,9 @@ import { orderedColors } from '@/lib/colors'
 // рамка не стала вдвое выше экрана, — тогда по краям будет фон.
 const DEFAULT_RATIO = 2 / 3
 const clampRatio = (r) => Math.min(Math.max(r, 9 / 16), 4 / 3)
+// Насколько форма фото может отличаться от рамки ленты, чтобы его можно было
+// растянуть на всю рамку с обрезкой краёв.
+const fillsSlide = (photo, frame) => Math.abs(photo - frame) / frame <= 0.2
 
 export default function ProductView({ product, sizeGuide, dolyame = null }) {
   const router = useRouter()
@@ -32,6 +35,10 @@ export default function ProductView({ product, sizeGuide, dolyame = null }) {
 
   const [color, setColor] = useState(colors[0]?.slug ?? null)
   const [size, setSize] = useState(null)
+  // Парная вещь (для собаки и человека): второй размер — для человека.
+  const humanSizes = useMemo(() => parseHumanSizes(product.humanSizes), [product.humanSizes])
+  const paired = humanSizes.length > 0
+  const [humanSize, setHumanSize] = useState(null)
   const [shot, setShot] = useState(0)
   const [flash, setFlash] = useState('')
   // Пропорции старых фото, у которых размер не записан в базе, узнаём,
@@ -111,7 +118,11 @@ export default function ProductView({ product, sizeGuide, dolyame = null }) {
 
   function addToCart(thenCheckout = false) {
     if (!selectedVariant) {
-      setFlash('Выберите размер')
+      setFlash(paired ? 'Выберите размер собаки' : 'Выберите размер')
+      return
+    }
+    if (paired && !humanSize) {
+      setFlash('Выберите размер человека')
       return
     }
     add(
@@ -122,6 +133,7 @@ export default function ProductView({ product, sizeGuide, dolyame = null }) {
         colorName: selectedVariant.colorName,
         colorHex: selectedVariant.colorHex,
         size: selectedVariant.size,
+        ...(paired ? { humanSize } : {}),
         priceKopeks: variantPrice(selectedVariant, product),
         image: main?.url || '',
         stock: selectedVariant.stock,
@@ -195,18 +207,29 @@ export default function ProductView({ product, sizeGuide, dolyame = null }) {
             style={{ '--slide-ratio': ratioOf(gallery[0]) }}
           >
             {gallery.length > 0 ? (
-              gallery.map((image, index) => (
-                <div className="slider__slide" key={image.id}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={image.url}
-                    alt={image.alt || product.title}
-                    loading={index === 0 ? 'eager' : 'lazy'}
-                    decoding="async"
-                    onLoad={index === 0 ? measure(image) : undefined}
-                  />
-                </div>
-              ))
+              gallery.map((image, index) => {
+                // Фото чуть другой формы, чем рамка, заполняет её целиком —
+                // края обрезаются едва заметно. Сильно другой формы —
+                // вписывается целиком, а пустые края закрывает размытая
+                // копия того же фото вместо серых полос.
+                const fill = fillsSlide(ratioOf(image), ratioOf(gallery[0]))
+                return (
+                  <div className={fill ? 'slider__slide slider__slide--fill' : 'slider__slide'} key={image.id}>
+                    {!fill && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img className="slider__backdrop" src={image.thumbUrl || image.url} alt="" aria-hidden="true" loading="lazy" />
+                    )}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={image.url}
+                      alt={image.alt || product.title}
+                      loading={index === 0 ? 'eager' : 'lazy'}
+                      decoding="async"
+                      onLoad={measure(image)}
+                    />
+                  </div>
+                )
+              })
             ) : (
               <div className="slider__slide">
                 <div className="card__placeholder">Фото скоро появится</div>
@@ -302,7 +325,7 @@ export default function ProductView({ product, sizeGuide, dolyame = null }) {
           )}
 
           <div className="option-group">
-            <div className="option-group__label">Размер:</div>
+            <div className="option-group__label">{paired ? 'Размер собаки:' : 'Размер:'}</div>
             <div className="sizes">
               {sizes.map((v) => (
                 <button
@@ -326,10 +349,32 @@ export default function ProductView({ product, sizeGuide, dolyame = null }) {
             </div>
           </div>
 
+          {paired && (
+            <div className="option-group">
+              <div className="option-group__label">Размер человека:</div>
+              <div className="sizes">
+                {humanSizes.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    className="size"
+                    aria-pressed={s === humanSize}
+                    onClick={() => {
+                      setHumanSize(s)
+                      setFlash('')
+                    }}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {flash && (
-            <div className={flash === 'Выберите размер' ? 'form-error' : 'form-ok'}>
+            <div className={flash.startsWith('Выберите') ? 'form-error' : 'form-ok'}>
               {flash}
-              {flash !== 'Выберите размер' && (
+              {!flash.startsWith('Выберите') && (
                 <>
                   {' — '}
                   <Link href="/cart" style={{ textDecoration: 'underline' }}>

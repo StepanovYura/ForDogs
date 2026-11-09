@@ -5,12 +5,15 @@ import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { requireUser } from '@/lib/auth'
 import { passwordSchema } from '@/lib/validation'
+import { normalizePhone, phoneDigits } from '@/lib/phone'
 
 export async function updateProfileAction(_prevState, formData) {
   const user = await requireUser('/account')
 
   const name = String(formData.get('name') || '').trim().slice(0, 120)
-  const phone = String(formData.get('phone') || '').trim().slice(0, 20)
+  const rawPhone = String(formData.get('phone') || '')
+  const phone = normalizePhone(rawPhone)
+  if (phoneDigits(rawPhone) && !phone) return { error: 'Укажите номер целиком: +7 (999) 999-99-99' }
 
   await prisma.user.update({
     where: { id: user.id },

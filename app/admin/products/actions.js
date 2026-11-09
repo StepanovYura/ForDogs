@@ -8,6 +8,7 @@ import { deleteObject } from '@/lib/storage'
 import { slugify, translit } from '@/lib/slug'
 import { recalcProductPrice } from '@/lib/pricing'
 import { orderedColors } from '@/lib/colors'
+import { parseHumanSizes } from '@/lib/sizes'
 
 function rublesToKopeks(value) {
   const number = Number(String(value).replace(',', '.'))
@@ -68,6 +69,7 @@ export async function updateProductAction(formData) {
       position: Number(formData.get('position') || 0) || 0,
       // Скидка, %: от 0 до 90, целое число. Пусто — без скидки.
       discountPercent: Math.min(Math.max(Math.round(Number(formData.get('discount')) || 0), 0), 90),
+      humanSizes: parseHumanSizes(formData.get('humanSizes')).join(', '),
       ...(formData.get('tagsEditable')
         ? { tags: { set: formData.getAll('tagIds').map((tagId) => ({ id: String(tagId) })) } }
         : {}),

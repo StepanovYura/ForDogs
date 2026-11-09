@@ -2,10 +2,12 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useCart } from '@/context/CartContext'
+import { lineKey, useCart } from '@/context/CartContext'
+import { sizeLabel } from '@/lib/sizes'
 import { formatPrice } from '@/lib/money'
 import ConsentCheckbox from '@/components/ConsentCheckbox'
 import { dolyamePart } from '@/lib/paymentMethods'
+import PhoneInput from '@/components/PhoneInput'
 import { useFormValidation } from '@/lib/formValidation'
 import FieldError from '@/components/FieldError'
 
@@ -79,7 +81,7 @@ export default function CheckoutForm({
       paymentMethod: method,
       deliveryMethodId: deliveryId,
       consent: form.get('consent') === 'on',
-      items: items.map((i) => ({ variantId: i.variantId, quantity: i.quantity })),
+      items: items.map((i) => ({ variantId: i.variantId, quantity: i.quantity, humanSize: i.humanSize || undefined })),
     }
 
     try {
@@ -140,14 +142,11 @@ export default function CheckoutForm({
           </div>
           <div className="field">
             <label htmlFor="customerPhone">Телефон</label>
-            <input
+            <PhoneInput
               id="customerPhone"
               name="customerPhone"
-              type="tel"
               className="input"
               required
-              minLength={10}
-              placeholder="+7 900 000-00-00"
               defaultValue={user.phone || ''}
               {...invalid('customerPhone')}
             />
@@ -242,12 +241,12 @@ export default function CheckoutForm({
       <aside className="summary">
         <h2 className="h3">Ваш заказ</h2>
         {items.map((i) => (
-          <div className="summary__row" key={i.variantId}>
+          <div className="summary__row" key={lineKey(i)}>
             <span className="muted">
               {i.title}
               <br />
               <span className="small">
-                {i.colorName} · {i.size} · {i.quantity} шт.
+                {i.colorName} · {sizeLabel(i.size, i.humanSize)} · {i.quantity} шт.
               </span>
             </span>
             <span>{formatPrice(i.priceKopeks * i.quantity)}</span>

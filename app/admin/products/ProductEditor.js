@@ -89,6 +89,21 @@ export default function ProductEditor({ product, categories, tagGroups = [] }) {
         </div>
 
         <div className="field">
+          <label htmlFor={`human-sizes-${product.id}`}>Размеры для человека — только для парных вещей</label>
+          <input
+            id={`human-sizes-${product.id}`}
+            name="humanSizes"
+            className="input"
+            placeholder="Например: XS, S, M, L, XL. Пусто — обычный товар"
+            defaultValue={product.humanSizes || ''}
+          />
+          <p className="small muted" style={{ margin: '6px 0 0' }}>
+            Если заполнено, покупатель выбирает два размера: для собаки и для человека.
+            Остатки считаются по размеру собаки.
+          </p>
+        </div>
+
+        <div className="field">
           <label>Описание</label>
           <textarea name="description" className="textarea" defaultValue={product.description} />
         </div>

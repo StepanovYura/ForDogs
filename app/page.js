@@ -1,7 +1,21 @@
 import Link from 'next/link'
 import { getHomeCover } from '@/lib/settings'
+import { SITE_NAME, jsonLd, siteOrigin } from '@/lib/seo'
 
 export const dynamic = 'force-dynamic'
+
+export const metadata = { alternates: { canonical: '/' } }
+
+// Для поисковиков: кто мы и где искать.
+const ORGANIZATION = {
+  '@context': 'https://schema.org',
+  '@type': 'OnlineStore',
+  name: SITE_NAME,
+  url: siteOrigin(),
+  logo: `${siteOrigin()}/apple-icon.png`,
+  description: 'Минималистичная одежда для собак',
+  sameAs: ['https://www.instagram.com/nixdogstudio'],
+}
 
 // Главная — одна обложка на весь экран.
 //   Компьютер: шапка с разделами словами, под ней фото до низа экрана,
@@ -15,6 +29,10 @@ export default async function HomePage() {
   const mobile = cover.mobile || cover.desktop
 
   return (
+    <>
+    <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd(ORGANIZATION)} />
+    {/* Заголовок страницы для поисковиков и экранных чтецов — на обложке его не видно. */}
+    <h1 className="visually-hidden">NIXDOG STUDIO — одежда для собак</h1>
     <Link href="/catalog" className="cover" aria-label="Перейти в каталог">
       {desktop ? (
         <picture>
@@ -26,5 +44,6 @@ export default async function HomePage() {
         <div className="cover__placeholder caption">Здесь будет фото обложки</div>
       )}
     </Link>
+    </>
   )
 }
