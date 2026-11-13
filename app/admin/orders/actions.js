@@ -1,11 +1,22 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/auth'
 import { STATUS_ORDER } from '@/lib/orderStatus'
 import { notifyOrder } from '@/lib/notifications'
-import { getProvider } from '@/lib/payments'
+import { getProvider, refundOrderPayment } from '@/lib/payments'
+
+// Ошибку показываем наверху списка заказов, а не падением страницы.
+function fail(message) {
+  redirect(`/admin/orders?error=${encodeURIComponent(message)}`)
+}
+
+// Деньги за заказ у магазина: оплачен и ещё не возвращён.
+const PAID_STATUSES = ['PAID', 'SHIPPED', 'DONE']
+const moneyTaken = (order) =>
+  PAID_STATUSES.includes(order.status) && !['refunded', 'refund_manual'].includes(order.paymentStatus)
 
 // Какое письмо уходит покупателю при смене статуса вручную.
 const STATUS_EVENTS = { PAID: 'paid', SHIPPED: 'shipped', DONE: 'done', CANCELED: 'canceled' }
@@ -29,29 +40,34 @@ export async function setOrderStatusAction(formData) {
   // но только один раз, поэтому проверяем прежний статус.
   const returningStock = status === 'CANCELED' && order.status !== 'CANCELED'
 
-  // «Долями»: деньги за оплаченный заказ при отмене возвращаем через API,
-  // а при вручении сообщаем о доставке — «Долями» пробьёт чек «Полный
-  // расчёт». Если «Долями» отказали, статус не меняем и показываем ошибку.
+  // Отмена оплаченного заказа — сразу возврат денег через банк (или
+  // «Долями»), если администратор не снял галочку: например, когда вернул
+  // часть суммы сам в кабинете банка. Банк отказал — статус не меняем.
   let paymentStatus = order.paymentStatus
-  const provider = order.paymentProvider === 'dolyame' ? getProvider('dolyame') : null
-  if (provider && statusChanged && order.paymentId) {
-    const wasPaid = ['PAID', 'SHIPPED', 'DONE'].includes(order.status)
-    if (status === 'CANCELED' && wasPaid && paymentStatus !== 'refunded') {
+  if (statusChanged && status === 'CANCELED' && moneyTaken(order)) {
+    if (formData.get('refund') === 'on') {
       try {
-        await provider.refund(order.paymentId, order, { delivered: paymentStatus === 'delivered' })
+        await refundOrderPayment(order)
         paymentStatus = 'refunded'
       } catch (error) {
-        console.error('Долями: возврат не прошёл', order.paymentId, error)
-        throw new Error(`Долями не приняли возврат: ${error.message}`)
+        console.error('Возврат не прошёл', order.paymentId, error)
+        fail(`Заказ №${order.number} не отменён: банк не принял возврат — ${error.message}`)
       }
-    } else if (status === 'DONE' && provider.needsDeliveryReceipt() && paymentStatus === 'succeeded') {
-      try {
-        await provider.completeDelivery(order.paymentId, order)
-        paymentStatus = 'delivered'
-      } catch (error) {
-        console.error('Долями: не принято подтверждение доставки', order.paymentId, error)
-        throw new Error(`Долями не приняли подтверждение доставки: ${error.message}`)
-      }
+    } else {
+      paymentStatus = 'refund_manual'
+    }
+  }
+
+  // «Долями»: при вручении сообщаем о доставке — «Долями» пробьёт чек
+  // «Полный расчёт».
+  const dolyame = order.paymentProvider === 'dolyame' ? getProvider('dolyame') : null
+  if (dolyame && statusChanged && status === 'DONE' && dolyame.needsDeliveryReceipt() && paymentStatus === 'succeeded') {
+    try {
+      await dolyame.completeDelivery(order.paymentId, order)
+      paymentStatus = 'delivered'
+    } catch (error) {
+      console.error('Долями: не принято подтверждение доставки', order.paymentId, error)
+      fail(`Заказ №${order.number}: «Долями» не приняли подтверждение доставки — ${error.message}`)
     }
   }
 
@@ -85,5 +101,25 @@ export async function setOrderStatusAction(formData) {
     notifyOrder(orderId, 'shipped')
   }
 
+  revalidatePath('/admin/orders')
+}
+
+// Деньги пришли уже после отмены заказа (покупатель оплатил старый QR) —
+// возвращаем их одной кнопкой.
+export async function refundOrderAction(formData) {
+  await requireAdmin()
+  const order = await prisma.order.findUnique({
+    where: { id: String(formData.get('orderId')) },
+    include: { items: true },
+  })
+  if (!order || order.status !== 'CANCELED' || order.paymentStatus !== 'succeeded') return
+
+  try {
+    await refundOrderPayment(order)
+  } catch (error) {
+    console.error('Возврат не прошёл', order.paymentId, error)
+    fail(`Заказ №${order.number}: банк не принял возврат — ${error.message}`)
+  }
+  await prisma.order.update({ where: { id: order.id }, data: { paymentStatus: 'refunded' } })
   revalidatePath('/admin/orders')
 }

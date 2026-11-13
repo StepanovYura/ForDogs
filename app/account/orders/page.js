@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { requireUser } from '@/lib/auth'
 import { formatPrice } from '@/lib/money'
+import { formatDateTime } from '@/lib/dates'
 import { STATUS_LABELS, statusBadgeClass } from '@/lib/orderStatus'
 
 export const dynamic = 'force-dynamic'
@@ -49,7 +50,7 @@ export default async function MyOrdersPage() {
               <div>
                 <strong>Заказ №{order.number}</strong>
                 <div className="small muted">
-                  {new Date(order.createdAt).toLocaleString('ru-RU')}
+                  {formatDateTime(order.createdAt)}
                 </div>
               </div>
               <span className={statusBadgeClass(order.status)}>

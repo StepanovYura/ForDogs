@@ -1,8 +1,9 @@
 import { prisma } from '@/lib/prisma'
 import { formatPrice } from '@/lib/money'
+import { formatDateTime } from '@/lib/dates'
 import { STATUS_LABELS, STATUS_ORDER, statusBadgeClass } from '@/lib/orderStatus'
 import { expireStalePayments } from '@/lib/payments'
-import { setOrderStatusAction } from './actions'
+import { refundOrderAction, setOrderStatusAction } from './actions'
 import { METHOD_LABELS } from '@/lib/paymentMethods'
 
 export const dynamic = 'force-dynamic'
@@ -18,8 +19,11 @@ export default async function AdminOrdersPage({ searchParams }) {
     take: 100,
   })
 
+  const error = typeof searchParams?.error === 'string' ? searchParams.error.slice(0, 400) : ''
+
   return (
     <>
+      {error && <div className="form-error">{error}</div>}
       <div className="filters">
         <a href="/admin/orders" aria-current={!filter}>
           Все
@@ -54,7 +58,7 @@ export default async function AdminOrdersPage({ searchParams }) {
               <div>
                 <strong>Заказ №{order.number}</strong>
                 <div className="small muted">
-                  {new Date(order.createdAt).toLocaleString('ru-RU')} ·{' '}
+                  {formatDateTime(order.createdAt)} ·{' '}
                   {order.customerName} · {order.customerPhone} ·{' '}
                   {order.user?.email || order.customerEmail}
                 </div>
@@ -82,13 +86,21 @@ export default async function AdminOrdersPage({ searchParams }) {
                   </div>
                 )}
                 {order.paymentStatus === 'refunded' && (
-                  <div className="small muted">Деньги возвращены через «Долями»</div>
+                  <div className="small muted">Деньги возвращены покупателю</div>
+                )}
+                {order.paymentStatus === 'refund_manual' && (
+                  <div className="small muted">Отменён без возврата через сайт — деньги вернуть в кабинете банка</div>
                 )}
                 {order.status === 'CANCELED' && order.paymentStatus === 'succeeded' && (
-                  <div className="small" style={{ color: 'var(--danger)', maxWidth: 260 }}>
-                    Деньги пришли уже после отмены заказа: верните оплату через банк
-                    или восстановите заказ вручную.
-                  </div>
+                  <form action={refundOrderAction} style={{ maxWidth: 260 }}>
+                    <input type="hidden" name="orderId" value={order.id} />
+                    <div className="small" style={{ color: 'var(--danger)', margin: '4px 0 8px' }}>
+                      Деньги пришли уже после отмены заказа.
+                    </div>
+                    <button type="submit" className="btn btn--sm">
+                      Вернуть деньги
+                    </button>
+                  </form>
                 )}
               </div>
             </div>
@@ -108,6 +120,15 @@ export default async function AdminOrdersPage({ searchParams }) {
                 </tbody>
               </table>
             </div>
+
+            {order.status === 'PAID' && order.cancelRequestedAt && (
+              <div className="form-error" style={{ marginTop: 16 }}>
+                Покупатель просит отменить заказ ({formatDateTime(order.cancelRequestedAt)})
+                {order.cancelReason ? `: «${order.cancelReason}»` : ''}. Если заказ ещё не
+                отправлен — выберите статус «Отменён», деньги вернутся автоматически. Если уже
+                отправлен — свяжитесь с покупателем.
+              </div>
+            )}
 
             <form action={setOrderStatusAction} className="inline-form" style={{ marginTop: 16 }}>
               <input type="hidden" name="orderId" value={order.id} />
@@ -138,8 +159,15 @@ export default async function AdminOrdersPage({ searchParams }) {
               <button type="submit" className="btn btn--sm">
                 Сохранить
               </button>
+              {['PAID', 'SHIPPED', 'DONE'].includes(order.status) &&
+                !['refunded', 'refund_manual'].includes(order.paymentStatus) && (
+                  <label className="small" style={{ whiteSpace: 'nowrap' }}>
+                    <input type="checkbox" name="refund" defaultChecked /> при отмене вернуть деньги
+                  </label>
+                )}
               <span className="small muted">
-                Покупателю уходит письмо о новом статусе. Отмена возвращает товары на склад.
+                Покупателю уходит письмо о новом статусе. Отмена возвращает товары на склад, а у
+                оплаченного заказа — и деньги покупателю (всю сумму, вместе с доставкой).
               </span>
             </form>
           </div>

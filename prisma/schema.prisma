@@ -238,6 +238,11 @@ model Order {
   // покупателю в письме «Заказ передан в доставку».
   trackingNumber   String?
 
+  // Покупатель попросил отменить оплаченный заказ — когда и почему.
+  // Решение за администратором: вещь могли уже упаковать или отправить.
+  cancelRequestedAt DateTime?
+  cancelReason      String   @default("")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

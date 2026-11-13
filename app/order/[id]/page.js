@@ -5,7 +5,9 @@ import { prisma } from '@/lib/prisma'
 import { requireUser } from '@/lib/auth'
 import { syncOrderPayment } from '@/lib/payments'
 import { formatPrice } from '@/lib/money'
+import { formatDateTime } from '@/lib/dates'
 import PaymentPanel from './PaymentPanel'
+import CancelRequest from './CancelRequest'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Заказ — NIXDOG STUDIO' }
@@ -29,6 +31,8 @@ export default async function OrderPage({ params }) {
   }
 
   const paid = order.status !== 'PENDING' && order.status !== 'CANCELED'
+  // Отменён после оплаты — деньги возвращаются, а не «не списаны».
+  const refunded = ['refunded', 'refund_manual', 'succeeded', 'delivered'].includes(order.paymentStatus)
   const awaitingPayment = order.status === 'PENDING' && order.paymentUrl && order.paymentExpiresAt
 
   const qrSvg = awaitingPayment && order.paymentMethod === 'sbp'
@@ -49,6 +53,11 @@ export default async function OrderPage({ params }) {
           <div className="form-ok">
             Оплата прошла. Мы уже собираем заказ и напишем на {order.customerEmail},
             когда передадим его в доставку.
+          </div>
+        ) : order.status === 'CANCELED' && refunded ? (
+          <div className="form-error">
+            Заказ отменён. Деньги вернутся на карту или счёт, с которого вы платили, —
+            обычно это занимает до 10 дней.
           </div>
         ) : order.status === 'CANCELED' ? (
           <div className="form-error">
@@ -98,7 +107,18 @@ export default async function OrderPage({ params }) {
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        {/* Отменить оплаченный заказ можно, пока он не передан в доставку. */}
+        {order.status === 'PAID' &&
+          (order.cancelRequestedAt ? (
+            <div className="form-ok" style={{ marginTop: 16 }}>
+              Запрос на отмену отправлен {formatDateTime(order.cancelRequestedAt)}. Если заказ ещё
+              не передан в доставку, мы отменим его и вернём деньги.
+            </div>
+          ) : (
+            <CancelRequest orderId={order.id} />
+          ))}
+
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 24 }}>
           <Link href="/account/orders" className="btn btn--ghost">
             Мои заказы
           </Link>
