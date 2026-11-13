@@ -30,6 +30,7 @@ export async function requestCancelAction(_prevState, formData) {
   if (updated.count === 1) notifyOrder(orderId, 'cancel_requested')
 
   revalidatePath(`/order/${orderId}`)
+  revalidatePath('/account/orders')
   revalidatePath('/admin/orders')
   return { ok: true }
 }

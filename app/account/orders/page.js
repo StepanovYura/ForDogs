@@ -4,6 +4,7 @@ import { requireUser } from '@/lib/auth'
 import { formatPrice } from '@/lib/money'
 import { formatDateTime } from '@/lib/dates'
 import { STATUS_LABELS, statusBadgeClass } from '@/lib/orderStatus'
+import CancelRequest from '@/app/order/[id]/CancelRequest'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Мои заказы — NIXDOG STUDIO' }
@@ -48,7 +49,9 @@ export default async function MyOrdersPage() {
               }}
             >
               <div>
-                <strong>Заказ №{order.number}</strong>
+                <Link href={`/order/${order.id}`}>
+                  <strong>Заказ №{order.number}</strong>
+                </Link>
                 <div className="small muted">
                   {formatDateTime(order.createdAt)}
                 </div>
@@ -87,11 +90,34 @@ export default async function MyOrdersPage() {
               {order.postalCode ? `, ${order.postalCode}` : ''}
             </p>
 
-            {order.status === 'PENDING' && order.paymentUrl && (
-              <Link href={`/order/${order.id}`} className="btn btn--sm" style={{ marginTop: 16 }}>
-                Перейти к оплате
-              </Link>
+            {order.status === 'SHIPPED' && order.trackingNumber && (
+              <p className="small" style={{ margin: '8px 0 0' }}>
+                Трек-номер: {order.trackingNumber}
+              </p>
             )}
+
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 16 }}>
+              {order.status === 'PENDING' && order.paymentUrl ? (
+                <Link href={`/order/${order.id}`} className="btn btn--sm">
+                  Перейти к оплате
+                </Link>
+              ) : (
+                <Link href={`/order/${order.id}`} className="btn btn--sm btn--ghost">
+                  Открыть заказ
+                </Link>
+              )}
+            </div>
+
+            {/* Оплаченный, ещё не отправленный заказ можно попросить отменить. */}
+            {order.status === 'PAID' &&
+              (order.cancelRequestedAt ? (
+                <div className="form-ok" style={{ marginTop: 16 }}>
+                  Запрос на отмену отправлен {formatDateTime(order.cancelRequestedAt)}. Если заказ
+                  ещё не передан в доставку, мы отменим его и вернём деньги.
+                </div>
+              ) : (
+                <CancelRequest orderId={order.id} />
+              ))}
           </div>
         ))
       )}
