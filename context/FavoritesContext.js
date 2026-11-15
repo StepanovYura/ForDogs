@@ -1,35 +1,24 @@
 'use client'
 
-// Избранное живёт в localStorage, как и корзина: отметить товар можно без
-// входа в аккаунт. Храним только id — цены и фото страница избранного
-// берёт из базы, чтобы они не устаревали.
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+// Избранное — как и корзина: гостю в браузере, вошедшему — в аккаунте
+// (lib/useAccountSync.js). Храним только id — цены и фото страница
+// избранного берёт из базы, чтобы они не устаревали.
+import { createContext, useContext, useMemo } from 'react'
+import { useAccountSync } from '@/lib/useAccountSync'
 
 const STORAGE_KEY = 'nixdog_favorites_v1'
 const FavoritesContext = createContext(null)
 
-export function FavoritesProvider({ children }) {
-  const [ids, setIds] = useState([])
-  const [ready, setReady] = useState(false)
+// Отмеченное гостем до входа — сверху, затем избранное аккаунта.
+const mergeFavorites = (server, guest) => [...new Set([...guest, ...server])]
 
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY)
-      if (raw) setIds(JSON.parse(raw))
-    } catch {
-      // Приватный режим или заблокированное хранилище — работаем без сохранения.
-    }
-    setReady(true)
-  }, [])
-
-  useEffect(() => {
-    if (!ready) return
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(ids))
-    } catch {
-      /* пусто */
-    }
-  }, [ids, ready])
+export function FavoritesProvider({ userId = null, children }) {
+  const [ids, setIds, ready] = useAccountSync({
+    userId,
+    storageKey: STORAGE_KEY,
+    field: 'favorites',
+    merge: mergeFavorites,
+  })
 
   const value = useMemo(
     () => ({
@@ -41,7 +30,7 @@ export function FavoritesProvider({ children }) {
         setIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [id, ...prev])),
       remove: (id) => setIds((prev) => prev.filter((x) => x !== id)),
     }),
-    [ids, ready]
+    [ids, ready, setIds]
   )
 
   return <FavoritesContext.Provider value={value}>{children}</FavoritesContext.Provider>

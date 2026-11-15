@@ -8,12 +8,60 @@ import { METHOD_LABELS } from '@/lib/paymentMethods'
 
 export const dynamic = 'force-dynamic'
 
+// Дата из строки поиска: 15.11.2026, 15.11 (текущий год) или 2026-11-15.
+// Возвращает сутки по Москве как промежуток в UTC.
+function parseDay(q) {
+  let d, m, y
+  let match = q.match(/^(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?$/)
+  if (match) [, d, m, y] = match
+  else if ((match = q.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/))) [, y, m, d] = match
+  else return null
+  const year = y ? (y.length === 2 ? 2000 + Number(y) : Number(y)) : new Date().getFullYear()
+  const start = new Date(Date.UTC(year, Number(m) - 1, Number(d)) - 3 * 60 * 60 * 1000)
+  if (Number.isNaN(start.getTime())) return null
+  return { gte: start, lt: new Date(start.getTime() + 24 * 60 * 60 * 1000) }
+}
+
+// Поиск по номеру заказа, имени, почте, телефону, городу, адресу или дате.
+async function searchWhere(q) {
+  if (!q) return {}
+  const contains = { contains: q, mode: 'insensitive' }
+  const or = [
+    { customerName: contains },
+    { customerEmail: contains },
+    { customerPhone: contains },
+    { city: contains },
+    { address: contains },
+    { user: { email: contains } },
+  ]
+  const number = q.replace(/^№\s*/, '')
+  if (/^\d{1,9}$/.test(number)) or.push({ number: Number(number) })
+  const day = parseDay(q)
+  if (day) or.push({ createdAt: day })
+  // Телефон ищем по цифрам: «9161234567», «8 916 123» и «+7 (916) 123-45-67»
+  // найдут один и тот же заказ, в каком бы виде номер ни был сохранён.
+  // Сохранённый номер начинается с 7 (+7 …), а покупатель мог набрать
+  // его с 8 — приводим к одному виду.
+  const digits = q.replace(/\D/g, '').replace(/^8(?=\d{4})/, '7')
+  if (digits.length >= 4) {
+    const rows = await prisma.$queryRaw`
+      SELECT id FROM orders WHERE regexp_replace("customerPhone", '[^0-9]', '', 'g') LIKE ${'%' + digits + '%'}`
+    if (rows.length) or.push({ id: { in: rows.map((r) => r.id) } })
+  }
+  return { OR: or }
+}
+
 export default async function AdminOrdersPage({ searchParams }) {
   const filter = searchParams?.status
+  const q = typeof searchParams?.q === 'string' ? searchParams.q.trim().slice(0, 100) : ''
+  const withQ = (href) => (q ? `${href}${href.includes('?') ? '&' : '?'}q=${encodeURIComponent(q)}` : href)
   // Чтобы в списке не висели «ожидает оплаты» заказы с давно истёкшим QR.
   await expireStalePayments().catch(() => {})
   const orders = await prisma.order.findMany({
-    where: STATUS_ORDER.includes(filter) ? { status: filter } : {},
+    where: {
+      ...(STATUS_ORDER.includes(filter) ? { status: filter } : {}),
+      ...(await searchWhere(q)),
+    },
     include: { items: true, user: { select: { email: true } } },
     orderBy: { createdAt: 'desc' },
     take: 100,
@@ -24,14 +72,35 @@ export default async function AdminOrdersPage({ searchParams }) {
   return (
     <>
       {error && <div className="form-error">{error}</div>}
+      <form className="inline-form" action="/admin/orders" style={{ marginBottom: 16 }}>
+        {STATUS_ORDER.includes(filter) && <input type="hidden" name="status" value={filter} />}
+        <input
+          type="search"
+          name="q"
+          className="input"
+          style={{ maxWidth: 420 }}
+          defaultValue={q}
+          placeholder="№ заказа, имя, почта, телефон, адрес или дата (15.11.2026)"
+          aria-label="Поиск заказов"
+        />
+        <button type="submit" className="btn btn--sm">
+          Найти
+        </button>
+        {q && (
+          <a href={STATUS_ORDER.includes(filter) ? `/admin/orders?status=${filter}` : '/admin/orders'} className="link-underline small">
+            Сбросить
+          </a>
+        )}
+      </form>
+
       <div className="filters">
-        <a href="/admin/orders" aria-current={!filter}>
+        <a href={withQ('/admin/orders')} aria-current={!filter}>
           Все
         </a>
         {STATUS_ORDER.map((status) => (
           <a
             key={status}
-            href={`/admin/orders?status=${status}`}
+            href={withQ(`/admin/orders?status=${status}`)}
             aria-current={filter === status}
           >
             {STATUS_LABELS[status]}
@@ -41,7 +110,7 @@ export default async function AdminOrdersPage({ searchParams }) {
 
       {orders.length === 0 ? (
         <div className="empty">
-          <p>Заказов с таким статусом нет.</p>
+          <p>{q ? `По запросу «${q}» заказов не найдено.` : 'Заказов с таким статусом нет.'}</p>
         </div>
       ) : (
         orders.map((order) => (

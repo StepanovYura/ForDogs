@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { lineKey, useCart } from '@/context/CartContext'
 import { sizeLabel } from '@/lib/sizes'
@@ -54,6 +54,13 @@ export default function CheckoutForm({
     (m) => m !== 'dolyame' || (rub >= (dolyameLimits.min || 0) && rub <= (dolyameLimits.max || Infinity))
   )
   const [error, setError] = useState('')
+  const errorBox = useRef(null)
+  // Ошибка оформления (товар закончился, банк недоступен) показывается вверху
+  // формы, а кнопка «Оплатить» — внизу: на телефоне сообщение было бы не
+  // видно. Прокручиваем к нему.
+  useEffect(() => {
+    if (error) errorBox.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [error])
   const [busy, setBusy] = useState(false)
   const [chosen, setMethod] = useState(methods[0] || 'sbp')
   const method = methods.includes(chosen) ? chosen : methods[0] || 'sbp'
@@ -124,7 +131,11 @@ export default function CheckoutForm({
   return (
     <form className="cart-layout" onSubmit={handleSubmit} onInput={clearOnInput} onChange={clearOnInput} noValidate>
       <div>
-        {error && <div className="form-error">{error}</div>}
+        {error && (
+          <div className="form-error" ref={errorBox} role="alert">
+            {error}
+          </div>
+        )}
 
         <h2 className="h3">Получатель</h2>
         <div className="row-2">

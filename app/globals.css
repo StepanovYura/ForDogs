@@ -37,6 +37,18 @@ body {
   padding: 0;
 }
 
+/* На телефоне браузер подсвечивает нажатую кнопку или ссылку синим
+   прямоугольником — убираем: нажатие и так видно по самой кнопке. */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Рамка фокуса — только при управлении с клавиатуры, а не после касания
+   или клика мышью. */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
 body {
   background: var(--bg);
   color: var(--ink);

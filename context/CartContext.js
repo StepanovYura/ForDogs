@@ -1,8 +1,10 @@
 'use client'
 
-// Корзина живёт в localStorage браузера — войти, чтобы положить товар,
-// не нужно. Авторизация требуется только на шаге оплаты.
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+// Корзина. Гостю — в браузере (войти, чтобы положить товар, не нужно),
+// вошедшему — в аккаунте, одна на все устройства. Как это устроено —
+// lib/useAccountSync.js.
+import { createContext, useContext, useMemo } from 'react'
+import { useAccountSync } from '@/lib/useAccountSync'
 
 const STORAGE_KEY = 'nixdog_cart_v1'
 const CartContext = createContext(null)
@@ -14,28 +16,30 @@ export function lineKey(item) {
   return item.humanSize ? `${item.variantId}|${item.humanSize}` : item.variantId
 }
 
-export function CartProvider({ children }) {
-  const [items, setItems] = useState([])
-  const [ready, setReady] = useState(false)
+// Корзина аккаунта + то, что гость положил до входа. Одинаковая строка —
+// берём большее количество, а не сумму: скорее всего, это та же вещь.
+function mergeCarts(server, guest) {
+  const result = [...server]
+  for (const item of guest) {
+    const index = result.findIndex((i) => lineKey(i) === lineKey(item))
+    if (index === -1) result.push(item)
+    else result[index] = { ...result[index], quantity: Math.max(result[index].quantity, item.quantity) }
+  }
+  return result
+}
 
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY)
-      if (raw) setItems(JSON.parse(raw))
-    } catch {
-      // Приватный режим или заблокированное хранилище — работаем без сохранения.
-    }
-    setReady(true)
-  }, [])
+// На сервер — только то, что нужно, чтобы восстановить строку.
+const cartToServer = (items) =>
+  items.map(({ variantId, humanSize, quantity }) => ({ variantId, humanSize, quantity }))
 
-  useEffect(() => {
-    if (!ready) return
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
-    } catch {
-      /* пусто */
-    }
-  }, [items, ready])
+export function CartProvider({ userId = null, children }) {
+  const [items, setItems, ready] = useAccountSync({
+    userId,
+    storageKey: STORAGE_KEY,
+    field: 'cart',
+    merge: mergeCarts,
+    toServer: cartToServer,
+  })
 
   const value = useMemo(() => {
     // item: { variantId, productSlug, title, colorName, colorHex, size,
@@ -75,7 +79,7 @@ export function CartProvider({ children }) {
     const totalKopeks = items.reduce((sum, i) => sum + i.priceKopeks * i.quantity, 0)
 
     return { items, add, setQuantity, remove, clear, count, totalKopeks, ready }
-  }, [items, ready])
+  }, [items, ready, setItems])
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>
 }

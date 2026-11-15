@@ -136,6 +136,10 @@ export async function POST(request) {
   // Платёж создаём уже вне транзакции: внешний запрос не должен держать базу.
   try {
     const payment = await startPayment(order, input.paymentMethod)
+    // Заказ создан — корзина аккаунта пуста на всех устройствах. Браузер
+    // свою тоже очистит, но он сразу уходит на страницу банка и может не
+    // успеть это сохранить.
+    await prisma.cartItem.deleteMany({ where: { userId: user.id } }).catch(() => {})
     // СБП — на нашу страницу заказа с QR-кодом; карта — на платёжную
     // страницу банка, оттуда банк вернёт покупателя на страницу заказа.
     const redirectUrl = HOSTED_METHODS.includes(input.paymentMethod) ? payment.url : `/order/${order.id}`

@@ -60,8 +60,8 @@ export default async function RootLayout({ children }) {
         <link rel="dns-prefetch" href={storageOrigin} />
       </head>
       <body>
-        <CartProvider>
-          <FavoritesProvider>
+        <CartProvider userId={user?.id || null}>
+          <FavoritesProvider userId={user?.id || null}>
             <div className="layout">
               <Header user={user} categories={categories} socials={siteInfo.socials} />
               <main>{children}</main>
