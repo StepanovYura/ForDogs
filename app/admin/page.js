@@ -4,10 +4,12 @@ import { formatPrice } from '@/lib/money'
 import { storageConfigured } from '@/lib/storage'
 import { activeProviderLabel, paymentsConfigured } from '@/lib/payments'
 import { mailConfigured } from '@/lib/mail'
+import { sendTestMailAction } from './actions'
 
 export const dynamic = 'force-dynamic'
 
-export default async function AdminHome() {
+export default async function AdminHome({ searchParams }) {
+  const mailResult = typeof searchParams?.mail === 'string' ? searchParams.mail.slice(0, 400) : ''
   const [orders, paid, products, lowStock, revenue] = await Promise.all([
     prisma.order.count(),
     prisma.order.count({ where: { status: { in: ['PAID', 'SHIPPED', 'DONE'] } } }),
@@ -33,7 +35,7 @@ export default async function AdminHome() {
     {
       label: 'Письма покупателям',
       ok: mailConfigured(),
-      hint: 'SMTP_HOST, SMTP_USER, SMTP_PASSWORD, MAIL_FROM; ADMIN_EMAIL — для уведомлений о заказах',
+      hint: 'MAIL_FROM и ключи Yandex Cloud Postbox (POSTBOX_*); ADMIN_EMAIL — для уведомлений о заказах. Проверка — кнопкой «Отправить тестовое письмо»',
     },
     { label: 'Хранилище картинок', ok: storageConfigured(), hint: 'S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY' },
     {
@@ -83,10 +85,21 @@ export default async function AdminHome() {
             ))}
           </tbody>
         </table>
-        <p className="small muted" style={{ marginBottom: 0 }}>
+        <p className="small muted">
           Переменные задаются в <code>.env</code> локально и в панели ONREZA
           на проде.
         </p>
+        {mailResult &&
+          (mailResult.startsWith('ok:') ? (
+            <div className="form-ok">Тестовое письмо отправлено на {mailResult.slice(3)} — проверьте почту.</div>
+          ) : (
+            <div className="form-error">{mailResult}</div>
+          ))}
+        <form action={sendTestMailAction}>
+          <button type="submit" className="btn btn--sm btn--ghost">
+            Отправить тестовое письмо
+          </button>
+        </form>
       </div>
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>

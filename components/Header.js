@@ -148,7 +148,14 @@ export default function Header({ user, categories = [], socials = {} }) {
       {menuOpen && (
         <div className="drawer" role="dialog" aria-modal="true" aria-label="Меню">
           <div className="drawer__backdrop" onClick={() => setMenuOpen(false)} />
-          <div className="drawer__panel">
+          {/* Нажали ссылку — переходим и сразу закрываем меню, иначе на телефоне
+              кажется, что ничего не произошло: новая страница скрыта под ним. */}
+          <div
+            className="drawer__panel"
+            onClick={(event) => {
+              if (event.target.closest('a')) setMenuOpen(false)
+            }}
+          >
             <div className="drawer__head">
               <span className="caption">Меню</span>
               <button type="button" className="icon-btn" onClick={() => setMenuOpen(false)} aria-label="Закрыть меню">
